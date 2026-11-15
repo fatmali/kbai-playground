@@ -1,0 +1,1266 @@
+<!doctype html><html lang="en"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>The Knowledge Based Agent</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Desktop keeps the agent map beside the walkthrough; mobile opens one stage at a time. */
+:root{
+  --canvas:#f4f5f7; --bg:#ffffff; --ink:#1a1d23; --muted:#667080; --rule:#dfe3e8; --sel:#e3e6eb;
+  --add-bg:#e1f3e7; --add-ink:#0e5a2b;
+  --del-bg:#fbe5e2; --del-ink:#a1160e;
+  --cur-bg:#fff0b3; --cur-ink:#1a1d23; --cur-mark:#946400;
+  --sans:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --canvas:#141619; --bg:#1c1e22; --ink:#e6e8eb; --muted:#949ba6; --rule:#2e323a; --sel:#2a2e36;
+  --add-bg:#143421; --add-ink:#93dfa9;
+  --del-bg:#3d1a19; --del-ink:#f3a59e;
+  --cur-bg:#3f3407; --cur-ink:#f8e08a; --cur-mark:#e3b93c;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --canvas:#141619; --bg:#1c1e22; --ink:#e6e8eb; --muted:#949ba6; --rule:#2e323a; --sel:#2a2e36;
+  --add-bg:#143421; --add-ink:#93dfa9;
+  --del-bg:#3d1a19; --del-ink:#f3a59e;
+  --cur-bg:#3f3407; --cur-ink:#f8e08a; --cur-mark:#e3b93c;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;text-align:left}
+button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+
+.app{max-width:1280px;margin:0 auto;padding-block:24px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;grid-template-columns:232px minmax(0,1fr);gap:24px;align-items:start}
+.route-error{grid-column:1/-1;margin:0 0 16px;padding:12px 16px;background:var(--cur-bg);color:var(--cur-ink);border-radius:6px}
+
+/* rail */
+.rail{display:flex;flex-direction:column;gap:20px;min-width:0;position:sticky;top:24px;max-height:calc(100dvh - 48px);overflow-y:auto;padding-right:4px}
+.rail h1{font-size:23px;line-height:1.2;font-weight:700;letter-spacing:-.01em;margin:6px 0 0;padding-left:10px;max-width:16ch}
+.grp h2{font-size:12.5px;font-weight:500;color:var(--muted);margin:0 0 4px;padding-left:10px}
+.stages,.mlist{display:flex;flex-direction:column;gap:1px}
+.st{display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:10px;padding:10px;border-radius:6px;width:100%;min-height:54px}
+.st .ico{grid-row:1/3;display:flex;align-items:center;justify-content:center;color:var(--muted);height:28px}
+.st[aria-pressed="true"] .ico{color:var(--ink)}
+.st,.m{transition:background-color .12s}
+.st .nm{font-size:14.5px;font-weight:500}
+.st .sig{grid-column:2;font-size:12px;color:var(--muted)}
+.m{padding:8px 10px;border-radius:6px;width:100%;font-size:14px;min-height:36px}
+.st:hover,.m:hover{background:var(--sel)}
+.st[aria-pressed="true"],.m[aria-pressed="true"]{background:var(--sel)}
+.st[aria-pressed="true"] .nm,.m[aria-pressed="true"]{font-weight:700}
+.timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:20px}
+.timeline li{position:relative;min-width:0}
+.timeline li:not(:last-child)::after{content:"↓";position:absolute;left:10px;top:100%;width:28px;height:20px;text-align:center;color:var(--muted)}
+.timeline .ico{border:1px solid var(--rule);border-radius:50%;font-size:12px;font-weight:600}
+.timeline .st[aria-pressed="true"] .ico{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.cycle-link{display:flex;align-items:center;gap:8px;margin:0;padding:6px 0 6px 10px;color:var(--muted);font-size:12px;line-height:1.4}
+.cycle-link .arrow{width:28px;flex:none;text-align:center;font-size:24px;line-height:1.2}
+.memory-loop{border:1px solid var(--rule);border-radius:8px;padding:12px 6px 6px;background:var(--bg)}
+.memory-loop h3{font-size:15px;margin:0;padding:0 4px}
+.memory-loop>p{font-size:12px;color:var(--muted);margin:3px 4px 10px}
+.memory-loop .st{border-top:1px solid var(--rule);border-radius:0;padding:10px 4px;grid-template-columns:22px minmax(0,1fr);column-gap:6px}
+.memory-loop .sig{font-size:12px}
+.map-source{margin-top:8px;padding:0 4px}
+.map-source summary{font-size:12.5px;color:var(--muted)}
+.map-source p{font-size:13px;line-height:1.5;margin:8px 0}
+.across-agent{padding-top:12px;border-top:1px solid var(--rule)}
+.mobile-nav,.mobile-topics{display:none}
+.topic-nav{padding:16px 24px;border-bottom:1px solid var(--rule)}
+.topic-nav h2{padding-left:0;margin-bottom:8px}
+.topic-nav .mlist{flex-direction:row;flex-wrap:wrap;gap:4px}
+.topic-nav .m{width:auto}
+
+/* panel */
+.panel{background:var(--bg);border:1px solid var(--rule);border-radius:10px;min-width:0;overflow:hidden}
+.head{padding:22px 24px 0}
+.topic-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 14px}
+.title{font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-.015em;margin:0}
+.definition{margin:10px 0 0;max-width:65ch;line-height:1.6;font-size:15px}
+.stepbar{display:flex;align-items:center;gap:16px;margin:20px 24px 0;min-height:44px}
+.cap{flex:1;min-width:0;margin:0;font-size:17px;font-weight:600;line-height:1.3}
+.count{font-family:var(--mono);font-size:12.5px;font-weight:400;color:var(--muted);margin-right:10px;white-space:nowrap}
+.ctl{display:flex;gap:6px;flex:none}
+.ctl button{height:44px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:600;border:1px solid var(--rule);
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:transform .08s}
+.ctl button:active:not(:disabled){transform:scale(.96)}
+.ctl button:disabled{opacity:.4;cursor:default}
+.ctl #next{background:var(--ink);border-color:var(--ink);color:var(--bg);min-width:88px;padding-left:14px}
+.prog{display:flex;gap:4px;margin:12px 24px 0}
+.prog button{flex:1;height:24px;padding:10px 0;background:transparent}
+.prog button::after{content:"";display:block;height:4px;border-radius:2px;background:var(--rule);transition:background-color .25s}
+.prog button.on::after{background:var(--ink)}
+
+.board{margin:20px 24px 12px;min-height:264px;display:flex;flex-direction:column;gap:16px}
+.lane{display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:8px;align-items:start}
+.var{font-family:var(--mono);font-size:13px;color:var(--muted);padding-top:5px;overflow-wrap:anywhere}
+.lines{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ln{display:flex;align-items:center;gap:10px;padding:4px 10px;border-radius:4px;font-family:var(--mono);font-size:13.5px;line-height:1.5}
+.ln .g{flex:none;width:14px;display:flex;justify-content:center;color:var(--muted)}
+.ln .tx{min-width:0;overflow-wrap:anywhere;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ln.add{background-image:linear-gradient(var(--add-bg),var(--add-bg));color:var(--add-ink)}
+.ln.del{background-image:linear-gradient(var(--del-bg),var(--del-bg));color:var(--del-ink)}
+.ln.cur{background-image:linear-gradient(var(--cur-bg),var(--cur-bg));color:var(--cur-ink)}
+/* motion: only lines whose state changed, in answer to a step */
+.ln.add,.ln.del,.ln.cur{background-repeat:no-repeat;background-size:100% 100%;animation:wipe .32s cubic-bezier(.2,.7,.2,1) var(--d,0ms) backwards}
+.ln.add .tx{animation:rise .32s ease-out var(--d,0ms) backwards}
+.ln.del .tx{animation:fade .32s ease-out var(--d,0ms) backwards}
+.swap{animation:fade .22s ease-out}
+@keyframes wipe{from{background-size:0% 100%}}
+@keyframes rise{from{opacity:0;transform:translateX(-6px)}}
+@keyframes fade{from{opacity:.25}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.ln.add .g,.ln.del .g{color:inherit}
+.ln.cur .g{color:var(--cur-mark)}
+.ln.idle{color:var(--muted)}
+.ln svg{display:block}
+
+.legend{display:flex;flex-wrap:wrap;gap:4px 18px;margin:0 24px 16px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend .keys{margin-left:auto}
+.notes dt{display:flex;align-items:center;gap:6px}
+.notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0;border-top:1px solid var(--rule)}
+.notes div{padding:14px 24px 18px}
+.notes div+div{border-left:1px solid var(--rule)}
+.notes dt{font-size:12.5px;color:var(--muted);margin-bottom:2px}
+.notes dd{margin:0;font-size:14.5px;font-weight:500}
+
+.rail-intro{margin:0;padding:0 10px;color:var(--muted);font-size:12.5px}
+.lesson{margin:0;color:var(--muted);font-size:14px;white-space:nowrap}
+.method-guide{margin:14px 24px 0;border-bottom:1px solid var(--rule);padding-bottom:12px}
+summary{cursor:pointer;font-weight:600;padding:5px 0}
+.method-guide dl{margin:10px 0 0;display:grid;gap:10px}
+.method-guide dt{font-size:12px;color:var(--muted)}
+.method-guide dd{margin:2px 0 0;max-width:72ch}
+.text-link{padding:0;text-decoration:underline;text-underline-offset:3px;color:inherit}
+.why{margin:6px 24px 18px;max-width:72ch;line-height:1.6}
+.walkthrough{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin:0 24px 16px;align-items:start}
+.walkthrough h3{font-size:13px;font-weight:600;margin:0 0 10px}
+.walkthrough .board{margin:0;min-height:0;gap:12px}
+.walkthrough .lane{grid-template-columns:minmax(0,1fr);row-gap:3px}
+.walkthrough .var{padding-top:0}
+.code-view{min-width:0}
+.code-hint{font-size:12px;color:var(--muted);margin:0 0 10px}
+.code-lines{display:flex;flex-direction:column;gap:5px}
+.code-line{padding:6px 9px;border-radius:4px;min-width:0;color:var(--muted)}
+.code-line code{font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;overflow-wrap:anywhere;display:block}
+.code-line.new{background:var(--add-bg);color:var(--add-ink)}
+.code-line small{display:block;font-size:12.5px;line-height:1.45;margin-top:4px}
+.code-output{margin-top:18px}
+.code-output h4{font-size:13px;margin:0 0 8px}
+.code-output pre{font:12.5px/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:12px;background:var(--canvas);border-radius:4px}
+.semantic-pictures{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.semantic-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.semantic-figure{margin:0;min-width:0;text-align:center}
+.semantic-figure svg{display:block;width:100%;height:144px;margin:6px auto;max-width:160px;color:var(--ink)}
+.semantic-figure figcaption{font-size:13px;line-height:1.5}
+.semantic-figure figcaption span{display:block;margin-top:4px}
+.semantic-object.changed{fill:var(--add-bg);stroke:var(--add-ink)}
+.semantic-note{margin:8px 0 0;font-size:14px;line-height:1.6}
+.course-map{border-top:1px solid var(--rule);padding:14px 24px 18px}
+.course-map p{max-width:72ch;color:var(--muted);font-size:13px}
+.course-map h3{font-size:15px;margin:20px 0 5px}
+.course-map ol{margin:8px 0;padding-left:22px}
+.course-map li{margin:6px 0}
+.map-table{width:100%;border-collapse:collapse;font-size:13px}
+.map-table th,.map-table td{text-align:left;padding:8px 4px;border-bottom:1px solid var(--rule);vertical-align:top}
+.map-table th{color:var(--muted);font-weight:500}
+.map-table th:first-child{width:46%}
+.map-table small{display:block;color:var(--muted)}
+a{color:inherit;text-underline-offset:3px}
+@media (max-width:1000px){
+  .walkthrough{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:760px), (max-width:950px) and (pointer:coarse){
+  body{font-size:16px}
+  .app{grid-template-columns:minmax(0,1fr);gap:0;padding-block:24px 32px}
+  .app[data-screen="overview"] .panel{display:none}
+  .app[data-screen="detail"]{padding-top:0;padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+  .app[data-screen="detail"] .rail{display:none}
+  .rail{gap:24px;position:static;max-height:none;overflow:visible;padding:0}
+  .rail h1{font-size:32px;margin:0;padding:0;max-width:16ch}
+  .grp h2{padding-left:0;font-size:14px;margin-bottom:12px}
+  #method-nav{display:none}
+  .timeline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .timeline li:not(:last-child)::after{content:"→";left:100%;top:14px;width:16px;height:28px;line-height:28px}
+  .timeline .st{grid-template-columns:minmax(0,1fr);grid-template-rows:28px 20px minmax(32px,auto);align-content:start;padding:12px 4px;justify-items:center;text-align:center;row-gap:6px;min-height:124px;background:var(--bg);border:1px solid var(--rule)}
+  .timeline .ico{grid-row:auto;width:28px}
+  .timeline .sig{grid-column:1;font-size:12px;line-height:1.35}
+  .timeline .nm{font-size:14px}
+  .timeline .st[aria-pressed="true"]{background:var(--sel);border-color:var(--ink)}
+  .cycle-link{font-size:13px;min-height:48px}
+  .pipeline-link{flex-direction:row-reverse;padding-right:calc(16.666% - 14px);padding-left:0}
+  .memory-loop{padding:14px 12px 8px}
+  .memory-loop h3{font-size:17px}
+  .memory-loop>p{font-size:14px}
+  .memory-loop .st{min-height:64px;grid-template-columns:28px minmax(0,1fr);column-gap:10px}
+  .memory-loop .nm,#monitor .nm{font-size:16px}
+  .memory-loop .sig,#monitor .sig{font-size:14px;line-height:1.5}
+  #monitor .st{min-height:70px}
+  .map-source summary{font-size:14px}
+  .map-source p{font-size:14px}
+  .mobile-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px;border-bottom:1px solid var(--rule);padding:8px 0}
+  .mobile-nav button{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 8px 0 0;font-size:15px;font-weight:600}
+  .mobile-nav span{font-size:14px;color:var(--muted)}
+  .mobile-topics{display:block;padding:16px 0}
+  .mobile-topics label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  .select-wrap{position:relative}
+  .select-wrap::after{content:"";position:absolute;right:18px;top:18px;width:8px;height:8px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg);pointer-events:none}
+  .mobile-topics select{appearance:none;-webkit-appearance:none;width:100%;min-height:48px;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--ink);color-scheme:inherit;font:inherit;padding:10px 42px 10px 12px;text-overflow:ellipsis;cursor:pointer}
+  .mobile-topics select:hover{border-color:var(--muted)}
+  .mobile-topics select:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .mobile-topics option{background:var(--bg);color:var(--ink)}
+  @supports (appearance:base-select){
+    .mobile-topics select,.mobile-topics select::picker(select){appearance:base-select}
+    .mobile-topics select::picker-icon{display:none}
+    .mobile-topics select::picker(select){background:var(--bg);color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:4px;max-height:60dvh;overflow-y:auto}
+    .mobile-topics option{min-height:44px;padding:10px;border-radius:4px;white-space:normal}
+    .mobile-topics option:hover,.mobile-topics option:focus,.mobile-topics option:checked{background:var(--sel)}
+    .mobile-topics option:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+  }
+  .panel{overflow:visible;border:0;border-radius:0;background:transparent}
+  .head{padding:8px 0 0}
+  .title{font-size:26px}
+  .definition{font-size:16px;margin-top:12px}
+  .stepbar{margin:24px 0 0}
+  .cap{flex-basis:100%}
+  .ctl{position:fixed;z-index:10;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--rule);padding:12px max(16px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));gap:8px}
+  .ctl button{flex:1;min-height:48px;font-size:15px}
+  .prog{margin:4px 0 0}
+  .prog button{height:44px;padding:20px 0}
+  .board{margin:16px 16px 12px;min-height:240px}
+  .lane{grid-template-columns:minmax(0,1fr);row-gap:3px}
+  .var{padding-top:0}
+  .legend{margin:0 0 18px}
+  .legend .keys{display:none}
+  .notes{grid-template-columns:minmax(0,1fr)}
+  .notes div{padding:14px 0}
+  .notes div+div{border-left:0;border-top:1px solid var(--rule)}
+  .rail-intro{padding:0;font-size:15px;line-height:1.5;max-width:34ch}
+  .method-guide{margin:16px 0 0}
+  summary{min-height:44px;display:list-item;align-content:center;padding:8px 0;font-size:14px}
+  .why{margin:0 0 22px}
+  .walkthrough{margin:0 0 22px;gap:24px}
+  .walkthrough h3{font-size:15px}
+  .code-hint,.code-line small{font-size:14px}
+  .code-line code,.ln{font-size:13.5px}
+  .code-line{padding:10px}
+  .course-map{padding:14px 0}
+  .map-table .text-link{min-height:44px}
+}
+@media (pointer:coarse){
+  .m,.text-link{min-height:44px}
+}
+</style>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<div class="app" id="app" data-screen="overview">
+  <p class="route-error" id="route-error" role="status" hidden></p>
+  <aside class="rail">
+    <h1>The Knowledge Based Agent</h1>
+    <p class="rail-intro">Follow the input to an answer, then see how memory and learning support the next attempt.</p>
+    <nav class="grp" aria-label="Pipeline and cognitive feedback">
+      <h2>Pipeline</h2>
+      <ol class="timeline" id="pipe"></ol>
+      <p class="cycle-link pipeline-link"><span class="arrow" aria-hidden="true">↕</span><span>Knowledge up · results back</span></p>
+      <section class="memory-loop" aria-labelledby="memory-title">
+        <h3 id="memory-title">Memory</h3>
+        <p>Shared facts, rules, concepts, and cases.</p>
+        <div class="stages" id="loops"></div>
+      </section>
+      <p class="cycle-link"><span class="arrow" aria-hidden="true">↕</span><span>Observe the process · adjust it</span></p>
+      <div id="monitor"></div>
+      <details class="map-source">
+        <summary>Why these connections?</summary>
+        <p><strong>Lesson 01, p. 7:</strong> reasoning, learning, and memory work together as <em>deliberation</em>. Reuse brings stored knowledge into Reason; Learn stores or revises knowledge from examples and outcomes. Memory also supplies knowledge for learning.</p>
+        <p><strong>Lesson 24, pp. 315–318:</strong> metacognition examines the agent's knowledge, reasoning, and learning. Oversee can trigger a repair, a learning goal, or a strategy change; it is not the next step after Reason.</p>
+        <p>Our three-stage pipeline is a teaching view, not the course's full cognitive architecture. Represent is how knowledge is organized, not a separate replacement for memory. Roles overlap; these arrows show the main connections, not every possible one.</p>
+      </details>
+    </nav>
+    <nav class="grp across-agent" aria-label="Across the agent's design and use"><h2>Across design and use</h2><div id="ethics"></div></nav>
+  </aside>
+
+  <main class="panel">
+    <nav class="grp topic-nav" id="method-nav" aria-label="Topics"><h2 id="mh"></h2><div class="mlist" id="methods"></div></nav>
+    <nav class="mobile-nav" aria-label="Stage navigation"><button id="all-stages"></button><span id="current-stage"></span></nav>
+    <div class="mobile-topics"><label for="topic-select" id="topic-label"></label><div class="select-wrap"><select id="topic-select"></select></div></div>
+    <div class="head"><div class="topic-heading"><h2 class="title" id="name" tabindex="-1"></h2><p class="lesson" id="lesson"></p></div><p class="definition" id="definition"></p></div>
+    <details class="method-guide" id="method-guide">
+      <summary>How it builds on other tools · When to choose it</summary>
+      <dl>
+        <div><dt>Course reference</dt><dd id="course-reference"></dd></div>
+        <div><dt>Builds on</dt><dd id="build"></dd></div>
+        <div><dt>Choose this when</dt><dd id="choose"></dd></div>
+        <div><dt>Choose another when</dt><dd id="instead"></dd></div>
+      </dl>
+    </details>
+    <div class="stepbar">
+      <p class="cap"><span class="count" id="count"></span><span id="cap"></span></p>
+      <div class="ctl"><button id="prev"></button><button id="play"></button><button id="next"></button></div>
+    </div>
+    <div class="prog" id="dots"></div>
+    <p class="why" id="why" aria-live="polite" aria-atomic="true"></p>
+    <div class="walkthrough">
+      <section aria-labelledby="state-title"><h3 id="state-title">State now</h3><div class="board" id="board"></div></section>
+      <section class="code-view" aria-labelledby="code-title">
+        <h3 id="code-title">Code so far <span class="count" id="code-count"></span></h3>
+        <p class="code-hint" id="code-hint"></p>
+        <div class="code-lines" id="code"></div>
+        <div class="code-output" id="code-output" hidden><h4>Expected output so far</h4><pre id="output"></pre></div>
+      </section>
+    </div>
+    <div class="legend" id="legend"></div>
+    <dl class="notes">
+      <div><dt><span id="ibr"></span>Breaks when</dt><dd id="br"></dd></div>
+      <div><dt><span id="ihw"></span>Try explaining</dt><dd id="hw"></dd></div>
+    </dl>
+    <details class="course-map">
+      <summary>How the sections connect · Course lesson map</summary>
+      <p>These sections are a teaching view, not the course's official units or a required execution order. A method can serve more than one role. These are fixed walkthroughs: Next reveals the next state and code fragment; it does not execute Python or connect examples into one running agent. The URL saves the selected section and topic; walkthrough steps restart on reload.</p>
+      <ol>
+        <li><strong>Perceive</strong> interprets input; <strong>Represent</strong> organizes knowledge; <strong>Reason</strong> uses that knowledge to find an answer. Interpretation itself can involve reasoning in the course's broader sense.</li>
+        <li><strong>Memory</strong> stores and supplies knowledge. <strong>Reuse</strong> feeds it into Reason; <strong>Learn</strong> updates it from examples, explanations, or results. The course calls reasoning, memory, and learning together <em>deliberation</em> (L01, p. 7).</li>
+        <li><strong>Oversee</strong> is the meta-level: monitor knowledge, reasoning, and learning, then repair or redirect them (L24, pp. 315–318). Learning by Correcting Mistakes belongs here and also changes knowledge; L23 introduces it as the first meta-reasoning lesson (p. 304).</li>
+        <li><strong>Classification</strong> now sits under Perceive because this example maps observed features to a known concept (L11, p. 136), rather than learning that concept. <strong>Diagnosis</strong> sits under Reason because this example infers faults in an external system (L22, p. 292); diagnosing the agent's own reasoning is meta-reasoning.</li>
+        <li><strong>Ethics</strong> applies to design and use across the agent. It is not an automatic runtime feedback step (L25, pp. 340–341).</li>
+      </ol>
+      <p>Placement is not exclusive: recording cases is both learning and a basis for analogy (L08, p. 93). Case-Based Reasoning spans retrieval, adaptation, evaluation, and storage (L09, p. 101); its walkthrough starts from reuse, but also reasons and learns.</p>
+      <p><strong>One possible combination:</strong> identify shapes → encode a semantic network → generate and test transformations → record a useful solution → switch to a visual method if the symbolic model misses a pattern. You do not need every tool.</p>
+      <div id="lesson-map"></div>
+      <p>Lesson numbers and titles: your FA26 syllabus (PDF p. 3). Page references: <em>kbai_ebook.pdf</em>, October 2016 edition. Problem Reduction is inside Lesson 05; Visuospatial Reasoning and AI Ethics are inside Lesson 25. Lessons 01–02 introduce the course; Lesson 26 wraps it up.</p>
+      <p><a href="https://gatech.instructure.com/courses/536204/external_tools/32347?display=borderless" target="_blank" rel="noopener noreferrer">Open your course's Ed Lessons</a> (sign-in required). The examples and code here are study aids, not course-provided code or assignment submissions. Semantic Networks uses runnable Python 3; the other topics use pseudocode.</p>
+    </details>
+  </main>
+</div>
+
+<script>
+const shape=(d,p)=>`<svg width="22" height="22" viewBox="0 0 28 28" aria-hidden="true"><path transform="rotate(${p} 14 14)" d="${d}" fill="currentColor"/></svg>`;
+const T=p=>shape("M14 4 24 24H4Z",p);
+const L=p=>shape("M6 4h6v14h10v6H6Z",p);
+
+const STAGES=[
+ ["perceive","Perceive"],
+ ["represent","Represent"],
+ ["reason","Reason"],
+ ["reuse","Reuse"],
+ ["learn","Learn"],
+ ["oversee","Oversee"],
+ ["ethics","Ethics"],
+];
+
+/* chip prefix: + added, - removed, * in focus, ~ default/idle */
+const M=[
+/* PERCEIVE */
+{s:"perceive",n:"Understanding",io:"ambiguous sentence → one meaning",
+ br:"Two frames both fit.",hw:"Show the slot that breaks each losing reading.",
+ st:[
+  ["Ambiguous input arrives.",["input",["the plane left for the coast"]]],
+  ["Propose candidate frames.",["input",["the plane left for the coast"]],["frames",["aircraft","woodworking tool"]]],
+  ["Bind slots. A contradiction kills a frame.",["aircraft",["+destination: coast","+action: depart"]],["tool",["-destination: ?","-action: depart"]]],
+  ["The survivor is the meaning.",["meaning",["*plane = aircraft"]]]]},
+{s:"perceive",n:"Common Sense Reasoning",io:"action sentence → unstated facts",
+ br:"Verb maps to no single primitive.",hw:"Name the primitive first, then list its consequences.",
+ st:[
+  ["Sentence in.",["input",["John gave Mary a book"]]],
+  ["Verb → primitive act.",["input",["John gave Mary a book"]],["primitive",["*ATRANS (transfer ownership)"]]],
+  ["Bind the roles.",["primitive",["ATRANS"]],["roles",["+actor: John","+object: book","+to: Mary"]]],
+  ["The primitive fires its implications.",["roles",["actor: John","object: book","to: Mary"]],["inferred",["+Mary owns the book","+John no longer owns it"]]]]},
+{s:"perceive",n:"Visuospatial Reasoning",rpm:1,io:"images → best-matching option",
+ br:"Change isn't affine (a shape is added or removed).",hw:"Verbal path stuck? Compare pixels instead.",
+ st:[
+  ["Figures are pixels, not words.",["A",[T(0)]],["B",[T(90)]],["C",[L(0)]]],
+  ["Find the op that turns A into B.",["A",[T(0)]],["B",[T(90)]],["op",["*rotate 90°"]]],
+  ["Apply the same op to C.",["C",[L(0)]],["op",["rotate 90°"]],["predicted",["+"+L(90)]]],
+  ["Score options by pixel overlap.",["predicted",[L(90)]],["options",["-"+L(180)+"41%","*"+L(90)+"98%","-"+L(270)+"37%"]]]]},
+
+{s:"perceive",n:"Classification",io:"features → most specific concept",
+ br:"Features fit two branches.",hw:"Show the descent level by level.",
+ st:[
+  ["Features in.",["features",["feathers","webbed feet","quacks"]]],
+  ["Establish the top-level concept.",["features",["*feathers","webbed feet","quacks"]],["path",["+bird"]],["pruned",["-mammal","-fish"]]],
+  ["Refine one level down.",["features",["feathers","*webbed feet","quacks"]],["path",["bird","+water bird"]],["pruned",["-songbird","-raptor"]]],
+  ["Refine until nothing more specific fits.",["features",["feathers","webbed feet","*quacks"]],["path",["bird","water bird","+duck"]]]]},
+
+/* REPRESENT */
+{s:"represent",n:"Semantic Networks",rpm:1,io:"figure → graph + transform",
+ br:"You leave out a relationship that matters, such as above versus below.",hw:"Why is a large triangle below the square still wrong?",
+ st:[
+  ["Describe the two pictures."],
+  ["Find what changed from A to B."],
+  ["Make the same size change in C."],
+  ["Choose the option that matches every detail."]]},
+{s:"represent",n:"Frames",rpm:1,io:"instance → filled slots",
+ br:"A default is treated as an observed fact.",hw:"List every slot and its default explicitly.",
+ st:[
+  ["A frame is slots with defaults.",["restaurant",["~waiter: yes","~customer pays: yes","~food: ?"]]],
+  ["Observation fills some slots.",["input",["Ashok ate pasta at a restaurant"]],["restaurant",["~waiter: yes","~customer pays: yes","+food: pasta"]]],
+  ["Unfilled slots keep defaults, provisionally.",["restaurant",["*waiter: yes","*customer pays: yes","food: pasta"]],["assumed",["+a waiter served him","+he paid"]]]]},
+{s:"represent",n:"Scripts",io:"situation → full event timeline",
+ br:"Events deviate from the stored sequence.",hw:"The scene order is what answers “did X happen?”",
+ st:[
+  ["Input triggers a script.",["input",["Ashok left a tip and went home"]],["script",["*restaurant"]]],
+  ["Lay out its scenes in order.",["scenes",["~enter","~order","~eat","~pay","~tip","~leave"]]],
+  ["Mark what was actually stated.",["scenes",["~enter","~order","~eat","~pay","*tip","*leave"]]],
+  ["The usual order suggests the missing events.",["assumed",["+enter","+order","+eat","+pay"]],["observed",["*tip","*leave"]]]]},
+{s:"represent",n:"Logic",io:"facts + rules → proven facts",
+ br:"Exceptions appear. Conclusions can't be retracted.",hw:"Bugs hide in the encoding, not the inference.",
+ st:[
+  ["Encode facts and rules.",["facts",["Human(Socrates)"]],["rules",["∀x Human(x) → Mortal(x)"]]],
+  ["Unify: x = Socrates.",["facts",["Human(Socrates)"]],["rules",["*Human(Socrates) → Mortal(Socrates)"]]],
+  ["Modus ponens adds a new fact.",["facts",["Human(Socrates)","+Mortal(Socrates)"]],["rules",["∀x Human(x) → Mortal(x)"]]]]},
+
+/* REASON */
+{s:"reason",n:"Generate & Test",rpm:1,io:"problem + test → survivors",
+ br:"Dumb generator, huge candidate space.",hw:"Say where the smarts live: generator or tester.",
+ st:[
+  ["Generator emits candidates.",["candidates",["cand 1","cand 2","cand 3","cand 4"]]],
+  ["Tester checks each against the goal.",["candidates",["-cand 1","*cand 2","-cand 3","*cand 4"]]],
+  ["Prune the failures.",["survivors",["cand 2","cand 4"]]],
+  ["Still more than one? Sharpen the test.",["survivors",["-cand 2","+cand 4"]]]]},
+{s:"reason",n:"Means-Ends Analysis",io:"state + goal + operators → op sequence",
+ br:"The greedy step blocks the goal.",hw:"Build the difference → operator table.",
+ st:[
+  ["Compare state to goal.",["state",["C on A","B on table"]],["goal",["A on B"]]],
+  ["Name the biggest difference.",["state",["C on A","B on table"]],["goal",["A on B"]],["difference",["*A is not on B"]]],
+  ["Pick the operator that removes it. Check preconditions.",["operator",["*move(A, B)"]],["needs",["-A clear","B clear"]]],
+  ["Unmet precondition becomes a sub-goal.",["operator",["~move(A, B)"]],["sub-goal",["*clear A → move(C, table)"]]],
+  ["Solve it, then apply the operator.",["state",["+C on table","+A on B"]],["difference",["~none"]]]]},
+{s:"reason",n:"Problem Reduction",io:"hard goal → solved sub-goals",
+ br:"Sub-goals interfere with each other.",hw:"Label every branch AND or OR.",
+ st:[
+  ["Goal too hard to solve directly.",["goal",["*make dinner"]]],
+  ["Split it. AND = all needed, OR = any one.",["goal",["make dinner"]],["AND",["get food","cook","set table"]],["OR: get food",["shop","delivery"]]],
+  ["Solve the leaves.",["AND",["+get food","+cook","+set table"]],["OR: get food",["+shop","~delivery"]]],
+  ["Compose upward.",["goal",["+make dinner — solved"]]]]},
+{s:"reason",n:"Production Systems",io:"working memory + rules → fired actions",
+ br:"No rule matches (impasse).",hw:"Rewrite working memory after every fire.",
+ st:[
+  ["Working memory holds facts. Rules wait.",["memory",["light: red"]],["rules",["red → stop","green → go","stopped ∧ green → go"]]],
+  ["Match: which conditions hold?",["memory",["light: red"]],["rules",["*red → stop","~green → go","~stopped ∧ green → go"]]],
+  ["Fire: the action rewrites memory.",["memory",["light: red","+stopped"]],["rules",["red → stop","green → go","stopped ∧ green → go"]]],
+  ["Memory changes. Match again: two rules fit.",["memory",["+light: green","stopped"]],["rules",["~red → stop","*green → go","*stopped ∧ green → go"]]],
+  ["Resolve the conflict: most specific wins.",["memory",["light: green","stopped"]],["fired",["+stopped ∧ green → go"]]]]},
+{s:"reason",n:"Planning",io:"goals + operators → ordered plan",
+ br:"A goal interaction goes undetected.",hw:"Check each operator's delete-list for clobbers.",
+ st:[
+  ["Two goals, one world.",["state",["C on A","A on table","B on table"]],["goals",["A on B","B on C"]]],
+  ["Solve goal 1 alone.",["goals",["*A on B","B on C"]],["plan",["+move C → table","+move A → B"]]],
+  ["Goal 2 needs B clear. Step 2 clobbered it.",["goals",["A on B","*B on C"]],["plan",["move C → table","-move A → B"]],["conflict",["*B must be clear to move"]]],
+  ["Reorder: interleave the goals.",["plan",["move C → table","+move B → C","move A → B"]],["goals",["+A on B","+B on C"]]]]},
+{s:"reason",n:"Constraint Propagation",rpm:1,io:"variables + constraints → consistent values",
+ br:"Too few constraints. Propagation stalls.",hw:"Rewrite the domains after each constraint.",
+ st:[
+  ["Each variable starts with a domain.",["X",["red"]],["Y",["red","green"]],["Z",["red","green"]],["rules",["X ≠ Y","Y ≠ Z"]]],
+  ["X ≠ Y deletes red from Y.",["X",["red"]],["Y",["-red","*green"]],["Z",["red","green"]],["rules",["*X ≠ Y","Y ≠ Z"]]],
+  ["The change cascades: Y ≠ Z deletes green from Z.",["X",["red"]],["Y",["green"]],["Z",["*red","-green"]],["rules",["X ≠ Y","*Y ≠ Z"]]],
+  ["Nothing left to delete. Stable.",["X",["+red"]],["Y",["+green"]],["Z",["+red"]]]]},
+{s:"reason",n:"Configuration",io:"template + parts → valid assembly",
+ br:"Novel design with no template.",hw:"Fixed skeleton plus constraints. It is not planning.",
+ st:[
+  ["The template lists roles. Each has candidates.",["engine",["V6","electric"]],["battery",["small","large"]],["rules",["electric needs large battery"]]],
+  ["Pick a part for one role.",["engine",["~V6","*electric"]],["battery",["small","large"]],["rules",["electric needs large battery"]]],
+  ["The constraint prunes other roles.",["engine",["electric"]],["battery",["-small","*large"]],["rules",["*electric needs large battery"]]],
+  ["Every role filled, every constraint holds.",["assembly",["+electric engine","+large battery"]]]]},
+
+{s:"reason",n:"Diagnosis",io:"symptoms → fault set",
+ br:"Faults coexist; this toy trace assumes one.",hw:"Reason effect → cause. Pick tests that discriminate.",
+ st:[
+  ["Symptoms in.",["symptoms",["print job waiting","no printed page"]]],
+  ["Abduce faults that could explain them.",["symptoms",["print job waiting","no printed page"]],["hypotheses",["paused queue","empty tray","disconnected printer"]]],
+  ["Run a test that splits the hypotheses.",["test",["*paper is present"]],["hypotheses",["paused queue","-empty tray","disconnected printer"]]],
+  ["Check the remaining explanations.",["test",["*printer reachable","*queue is paused"]],["hypotheses",["+paused queue","-empty tray","-disconnected printer"]]]]},
+
+/* REUSE */
+{s:"reuse",n:"Learning by Recording Cases",io:"new problem + cases → nearest case's answer",
+ br:"Wrong features pick the wrong neighbor.",hw:"Justify the similarity metric.",
+ st:[
+  ["A library of solved cases. A new problem.",["cases",["sparrow → bird","salmon → fish","bat → mammal"]],["new",["*penguin: feathers, swims"]]],
+  ["Score similarity to every case.",["cases",["sparrow 0.7","salmon 0.4","bat 0.2"]],["new",["penguin: feathers, swims"]]],
+  ["Take the nearest.",["cases",["*sparrow 0.7","~salmon 0.4","~bat 0.2"]]],
+  ["Copy its answer unchanged.",["answer",["+penguin → bird"]]]]},
+{s:"reuse",n:"Case-Based Reasoning",io:"new problem + cases → adapted solution",
+ br:"Nearest case is too far to adapt.",hw:"Show what changed from the retrieved solution, and why.",
+ st:[
+  ["Retrieve the closest case.",["new",["roast duck?"]],["library",["*roast chicken","beef stew"]]],
+  ["Reuse: adapt the differences.",["retrieved",["roast chicken"]],["adapted",["+chicken → duck","+longer cook time"]]],
+  ["Revise: test it, fix what fails.",["test",["-too fatty"]],["fix",["+score skin, drain fat"]]],
+  ["Retain: store the new case.",["library",["roast chicken","beef stew","+roast duck"]]]]},
+{s:"reuse",n:"Analogical Reasoning",rpm:1,io:"source + target → transferred solution",
+ br:"Mapping on looks instead of relations.",hw:"Name the relation that carries over.",
+ st:[
+  ["Encode both as relations.",["source",["planet —orbits→ sun","sun —attracts→ planet"]],["target",["nucleus —attracts→ electron","~electron —?→ nucleus"]]],
+  ["Align on relations. Drop attributes.",["mapping",["+sun ↔ nucleus","+planet ↔ electron"]],["ignored",["-hot","-yellow","-huge"]]],
+  ["Transfer a candidate relation, not a proven fact.",["mapping",["sun ↔ nucleus","planet ↔ electron"]],["hypothesis",["+electron —orbits→ nucleus (historical model)"]]]]},
+
+/* LEARN */
+{s:"learn",n:"Incremental Concept Learning",io:"labeled examples → concept definition",
+ br:"An example differs in several ways at once.",hw:"One example, one difference, one edit.",
+ st:[
+  ["First positive example becomes the concept.",["concept: arch",["2 posts","block on top","top rests on posts"]]],
+  ["A near-miss arrives. Find the one difference.",["concept: arch",["2 posts","block on top","top rests on posts"]],["near-miss",["-posts touch each other"]]],
+  ["Specialize: forbid that difference.",["concept: arch",["2 posts","block on top","top rests on posts","+posts must not touch"]]],
+  ["A new positive doesn't fit. Generalize.",["positive",["*wedge on top"]],["concept: arch",["2 posts","+any shape on top","top rests on posts","posts must not touch"]]]]},
+{s:"learn",n:"Version Spaces",io:"+ / − examples → converged concept",
+ br:"A noisy label makes S and G cross.",hw:"Rewrite S and G after every example.",
+ st:[
+  ["G covers everything. S covers nothing.",["G general",["(any size, any color)"]],["S specific",["∅"]]],
+  ["Positive example: S grows just enough.",["example",["*+ small, red"]],["G general",["(any size, any color)"]],["S specific",["+(small, red)"]]],
+  ["Negative example: G shrinks just enough.",["example",["*− large, red"]],["G general",["+(small, any color)"]],["S specific",["(small, red)"]]],
+  ["Another positive: S grows. S = G. Done.",["example",["*+ small, blue"]],["G general",["*(small, any color)"]],["S specific",["+(small, any color)"]]]]},
+{s:"learn",n:"Explanation-Based Learning",io:"one example + theory → general rule",
+ br:"No domain theory to explain with.",hw:"Keep only the features the explanation used.",
+ st:[
+  ["One example, many features.",["example: cup",["red","ceramic","has handle","concave","flat bottom"]]],
+  ["Explain why it works, using what you know.",["example: cup",["red","ceramic","has handle","concave","flat bottom"]],["explanation",["+handle → liftable","+concave → holds liquid","+flat bottom → stable"]]],
+  ["Drop every feature the proof didn't use.",["example: cup",["-red","-ceramic","*has handle","*concave","*flat bottom"]]],
+  ["Generalize into a rule.",["rule",["+liftable ∧ holds liquid ∧ stable → cup"]]]]},
+
+/* OVERSEE */
+{s:"oversee",n:"Meta-Reasoning",io:"reasoning trace → strategy switch or repair",
+ br:"Wrong diagnosis, or endless self-reflection.",hw:"Name the method, the failure signal, the response.",
+ st:[
+  ["Object level runs a strategy.",["problem",["Raven's problem"]],["strategy",["*semantic network"]]],
+  ["The monitor sees a failure.",["strategy",["semantic network"]],["monitor",["-no option matches"]]],
+  ["Diagnose the cause.",["monitor",["no option matches"]],["cause?",["~missing knowledge","~wrong knowledge","*wrong strategy"]]],
+  ["Switch strategy and resume.",["strategy",["-semantic network","+visuospatial"]]]]},
+{s:"oversee",n:"Learning by Correcting Mistakes",io:"error + trace → patched knowledge",
+ br:"Blaming the wrong rule.",hw:"Treat it as debugging: isolate, explain, patch.",
+ st:[
+  ["The agent gets one wrong.",["input",["red bowl"]],["output",["-cup"]]],
+  ["Trace back: which knowledge fired?",["trace",["concave ✓","*red → cup","no handle (ignored)"]]],
+  ["Isolate the faulty piece.",["fault",["*rule: red → cup"]]],
+  ["Patch the concept.",["concept: cup",["concave","-red","+has handle"]]]]},
+/* ACROSS DESIGN AND USE */
+{s:"ethics",n:"Ethics in AI",io:"agent design → accountability judgment",
+ br:"Ethics is bolted on after the build.",hw:"Tie each claim to this agent's data and users.",
+ st:[
+  ["Whose data taught it?",["agent",["diagnosis agent"]],["trained on",["*hospital A patients"]]],
+  ["Who might it fail? Test beyond the training population.",["trained on",["hospital A patients"]],["evaluate for",["*patients unlike hospital A"]]],
+  ["Can it explain itself?",["output",["flu"]],["evidence shown?",["*which symptoms, which rule"]]],
+  ["Who answers for the error?",["accountable",["builder?","deployer?","clinician?"]]]]},
+];
+
+const LESSONS={
+  3:"Semantic Networks",4:"Generate & Test",5:"Means-Ends Analysis",6:"Production Systems",
+  7:"Frames",8:"Learning by Recording Cases",9:"Case-Based Reasoning",10:"Incremental Concept Learning",
+  11:"Classification",12:"Logic",13:"Planning",14:"Understanding",15:"Commonsense Reasoning",
+  16:"Scripts",17:"Explanation-Based Learning",18:"Analogical Reasoning",19:"Version Spaces",
+  20:"Constraint Propagation",21:"Configuration",22:"Diagnosis",23:"Learning by Correcting Mistakes",
+  24:"Meta-Reasoning",25:"Advanced Topics"
+};
+
+/* Each trace entry explains one state and the code introduced there. */
+const G={
+  "Understanding":{
+    lesson:[14,189],
+    definition:"Understanding uses context and stored knowledge to choose an interpretation of an input.",
+    build:"Uses Frames (L07) to supply possible meanings, then tests which meaning fits the sentence.",
+    use:"The words are known but their intended meaning is ambiguous: does 'plane' mean an aircraft or a tool?",
+    instead:["Common Sense Reasoning","The meaning is already clear and you want the unstated consequences of an action."],
+    trace:[
+      ["Do not commit to a meaning for 'plane' yet. The rest of the sentence provides evidence for choosing one.",
+        ["sentence = 'the plane left for the coast'","Keep the input before interpreting it."]],
+      ["Retrieve both familiar senses. This is candidate generation over meanings, not a random guess.",
+        ["frames = [aircraft_frame, tool_frame]","Load the two stored interpretations."]],
+      ["A departure and destination fit the aircraft frame. The ordinary tool frame cannot bind those roles; the mismatch removes it in this simplified context.",
+        ["bound = [bind_roles(f, sentence) for f in frames]","Try filling each frame's slots from the sentence."],
+        ["valid = [f for f in bound if consistent(f)]","Keep only interpretations whose constraints hold."]],
+      ["Select the surviving interpretation, not just the most familiar word sense. If both still fit, more context is needed.",
+        ["meaning = require_one(valid)","Return the aircraft reading; report ambiguity if there is not one survivor."]]
+    ]
+  },
+  "Common Sense Reasoning":{
+    lesson:[15,200],
+    definition:"Common sense reasoning uses everyday knowledge about actions to infer facts that were not explicitly stated.",
+    build:"Adds action knowledge to a parsed sentence: a known primitive connects an event to its consequences.",
+    use:"You need facts that were not said explicitly, such as who owns an object after a completed gift.",
+    instead:["Scripts","The gap concerns a sequence of events, such as ordering before eating, rather than one action's effects."],
+    trace:[
+      ["The sentence states a gift, but does not separately list who owns the book afterward.",
+        ["event = parse('John gave Mary a book')","Extract the action and participants."]],
+      ["ATRANS means transfer of an abstract relationship, here ownership. It supplies reusable knowledge about 'give' rather than a rule for this one sentence.",
+        ["act = primitive(event.verb)","Map 'gave' to the stored ATRANS action model."]],
+      ["Roles identify who transferred what to whom. Mixing up actor and recipient would reverse the conclusion.",
+        ["roles = {'from': 'John', 'object': 'book', 'to': 'Mary'}","Bind this event to the action model's arguments."]],
+      ["A completed ownership transfer makes Mary the owner and removes John's ownership in this model. Ownership is not the same as current physical possession.",
+        ["facts = effects(act, roles)","Apply the action model to infer the new ownership facts."]]
+    ]
+  },
+  "Visuospatial Reasoning":{
+    lesson:[25,327],
+    definition:"Visuospatial reasoning works with shapes, positions, and transformations to solve problems using visual information.",
+    build:"Uses visual structure directly. It can replace or complement a Semantic Network when naming objects loses important geometry.",
+    use:"Rotation, reflection, alignment, or pixel-level patterns explain the change better than object labels.",
+    instead:["Semantic Networks","Relations such as 'inside' or 'above' carry the pattern, and you can reliably identify the objects."],
+    trace:[
+      ["Keep the geometry of A, B, and C rather than immediately translating everything into words.",
+        ["A, B, C = read_images(problem)","Read the three given figures."]],
+      ["A clockwise quarter-turn explains A becoming B. In an implementation you would compare candidate operations; the walkthrough shows the selected one.",
+        ["op = best_visual_transform(A, B)","Choose the operation that best aligns A with B: rotate 90 degrees."]],
+      ["Transfer the operation, not the triangle's identity. Applying it to the L-shape predicts a new image.",
+        ["prediction = apply(op, C)","Rotate C using the same operation."]],
+      ["Compare the predicted image with each option. The percentages are illustrative scores, not pixel measurements computed by this page.",
+        ["scores = [overlap(prediction, x) for x in options]","Score each option against the prediction."],
+        ["answer = options[argmax(scores)]","Select the highest-scoring option."]]
+    ]
+  },
+  "Semantic Networks":{
+    lesson:[3,28],
+    definition:"A semantic network represents objects or concepts as nodes and their relationships as links.",
+    build:"Starts after Perceive identifies the shapes. Represent stores the objects and their relationships; Reason can then compare these descriptions.",
+    use:"Object properties and relations matter more than exact pixels; you want to explain a transformation as explicit edits.",
+    instead:["Frames","You mainly need named slots and defaults for one familiar situation. Use Visuospatial Reasoning for geometry that a graph misses."],
+    runnable:true,
+    output:["","{'size': 'large'}","{'shape': 'triangle', 'size': 'large'}","Option 2"],
+    trace:[
+      ["A has a small circle; B has a large circle. Both are above a square. Each shape is a node; 'above' is the link between them. The Python dictionaries store this tiny network by hand, without detecting pixels.",
+        [`# Describe the circle relative to the square.
+A = {
+    "object": {"shape": "circle", "size": "small"},
+    "reference": "square",
+    "relation": "above",
+}`, "Store picture A."],
+        [`# B differs only in the circle's size.
+B = {
+    "object": {"shape": "circle", "size": "large"},
+    "reference": "square",
+    "relation": "above",
+}`, "Store picture B."]],
+      ["Compare the stored descriptions, not the pixels. Only size differs, so record size = large. 'Above' describes position, not an arrow telling the circle to move.",
+        [`# This example keeps the square and relationship fixed.
+assert A["reference"] == B["reference"]
+assert A["relation"] == B["relation"]
+
+# Record only the object's properties that changed.
+changes = {}
+for property_name in A["object"]:
+    before = A["object"][property_name]
+    after = B["object"][property_name]
+    if before != after:
+        changes[property_name] = after
+
+print(changes)`, "Compare each property and keep its new value only if it changed."]],
+      ["C contains a triangle instead of a circle. Reuse the size change, not B's entire picture: the prediction must keep C's triangle and its position above the square.",
+        [`from copy import deepcopy
+
+C = {
+    "object": {"shape": "triangle", "size": "small"},
+    "reference": "square",
+    "relation": "above",
+}
+
+# Copy the nested data so C itself is not changed.
+prediction = deepcopy(C)
+# update() replaces size but keeps shape = triangle.
+prediction["object"].update(changes)
+print(prediction["object"])`, "Apply the recorded change to a separate copy of C."]],
+      ["Option 1 is too small. Option 3 has the right size but the wrong relationship: below, not above. Option 2 matches both. Python's dictionary comparison checks the full description, including the relationship.",
+        [`# Build the three pictured options.
+option_1 = deepcopy(C)  # Still small.
+option_2 = deepcopy(C)
+option_2["object"]["size"] = "large"
+option_3 = deepcopy(option_2)
+option_3["relation"] = "below"  # Right size, wrong position.
+options = [option_1, option_2, option_3]
+
+# Compare all stored details, not just size.
+for number, option in enumerate(options, start=1):
+    if option == prediction:
+        print(f"Option {number}")`, "Find the option with the same objects, properties, and relationship."]]
+    ]
+  },
+  "Frames":{
+    lesson:[7,82],
+    definition:"A frame organizes knowledge about a familiar object or situation into slots, some with revisable default values.",
+    build:"Packages related knowledge into slots. Understanding (L14) uses frames as candidate meanings; Scripts (L16) add event order.",
+    use:"You recognize a familiar type of situation but only some details were observed. Defaults let you reason provisionally.",
+    instead:["Logic","The conclusion must follow from explicit facts and rules, rather than from a typical-but-revisable default."],
+    trace:[
+      ["A frame stores expectations before this particular visit is known. A default is an assumption, not an observation.",
+        ["visit = copy_frame('restaurant')","Start with defaults for waiter, payment, and food."]],
+      ["The observed pasta fills the food slot. Other slots remain unobserved; one detail does not confirm all the defaults.",
+        ["visit['food'] = observed('pasta')","Record pasta as evidence, overriding the unknown food slot."]],
+      ["Use the waiter and payment defaults only provisionally. A self-service restaurant or an unpaid meal would require revising them.",
+        ["assumptions = unobserved_defaults(visit)","Keep inferred defaults separate from observed facts."]]
+    ]
+  },
+  "Scripts":{
+    lesson:[16,212],
+    definition:"A script describes a familiar sequence of events so an agent can interpret a story and infer likely missing steps.",
+    build:"Extends a frame from 'what is usually present' to 'what usually happens next.'",
+    use:"A brief story omits routine events and their order helps explain what probably happened.",
+    instead:["Planning","You need to construct a future action sequence that achieves a goal, not infer a familiar past sequence."],
+    trace:[
+      ["Tipping is a cue for a restaurant visit in this example. A script is retrieved from memory, not invented from the two observed events.",
+        ["script = retrieve_script('restaurant')","Load a plausible event pattern for the story."]],
+      ["The stored order connects entering, ordering, eating, paying, tipping, and leaving. That sequence is the extra knowledge beyond a frame.",
+        ["scenes = script.scenes","Read the usual ordered events."]],
+      ["Only tipping and leaving were actually stated. Marking observations avoids confusing evidence with expectations.",
+        ["observed_events = {'tip', 'leave'}","Record what the story explicitly tells you."]],
+      ["The usual script suggests earlier events. These are defeasible assumptions: unusual visits can skip or reorder them.",
+        ["assumed_events = usual_gaps(scenes, observed_events)","Infer likely missing events while preserving their assumed status."]]
+    ]
+  },
+  "Logic":{
+    lesson:[12,149],
+    definition:"Logic expresses facts and rules precisely so an agent can derive conclusions that follow from them.",
+    build:"Gives representations precise truth conditions; inference rules then derive consequences without relying on defaults.",
+    use:"You can state dependable facts and rules and need a traceable proof of a conclusion.",
+    instead:["Frames","Your knowledge describes what normally happens but admits exceptions, so treating it as a universal rule would be too strong."],
+    trace:[
+      ["The fact and the universal rule play different roles. The rule alone does not tell you whether Socrates is human.",
+        ["facts = {Human('Socrates')}","Assert the individual fact."],
+        ["rule = ForAll('x', Implies(Human('x'), Mortal('x')))","Encode the general implication."]],
+      ["Unification aligns the rule's variable with the known individual. It makes the rule applicable to this fact.",
+        ["bound_rule = substitute(rule, x='Socrates')","Instantiate Human(Socrates) implies Mortal(Socrates)."]],
+      ["Modus ponens uses a true premise and its implication to derive the conclusion. It does not license the reverse inference.",
+        ["facts.add(apply_modus_ponens(facts, bound_rule))","Add Mortal(Socrates), not Human(any mortal)."]]
+    ]
+  },
+  "Generate & Test":{
+    lesson:[4,43],
+    definition:"Generate and test proposes candidate solutions, checks them against requirements, and rejects those that fail.",
+    build:"Needs a representation of candidates and a test for success. Smarter representations can make both stages more selective.",
+    use:"You can propose possibilities and recognize valid answers even without knowing how to construct the answer directly.",
+    instead:["Constraint Propagation","Constraints can eliminate values before complete candidates are built; avoid generating combinations you already know cannot work."],
+    trace:[
+      ["The generator proposes possibilities; it has not shown that any work. In a puzzle these might be candidate transformations.",
+        ["candidates = generate(problem)","Produce candidates 1 through 4 for this example."]],
+      ["Apply the same known requirement to each candidate. Candidates 2 and 4 pass this first test, not necessarily every requirement.",
+        ["results = [passes_basic_test(c) for c in candidates]","Record pass or fail for each candidate."]],
+      ["Discard failed candidates so later work focuses on the survivors. Testing and pruning are separate operations here for visibility.",
+        ["survivors = [c for c, ok in zip(candidates, results) if ok]","Keep candidates 2 and 4."]],
+      ["Use an additional genuine constraint to distinguish the survivors, not a test invented to force your preferred answer.",
+        ["answer = require_one([c for c in survivors if passes_extra_test(c)])","Candidate 4 alone satisfies the additional requirement."]]
+    ]
+  },
+  "Means-Ends Analysis":{
+    lesson:[5,53],
+    definition:"Means-ends analysis compares the current state with a goal and chooses actions or sub-goals that reduce the difference.",
+    build:"Adds goal-directed choice to search: represent the current state, the goal, and operators that reduce their differences.",
+    use:"A visible difference points to a useful action, and blocked actions can be enabled by manageable sub-goals.",
+    instead:["Planning","Achieving one goal can undo another, so you need to reason about action ordering and interactions explicitly."],
+    trace:[
+      ["The goal describes what must become true, not how to get there. C currently blocks access to A.",
+        ["state, goal = read_blocks_problem()","Read the current arrangement and the target A on B."]],
+      ["Choose a difference to work on. This focuses search instead of trying every legal move indiscriminately.",
+        ["difference = choose_difference(state, goal)","Identify that A is not on B."]],
+      ["Moving A onto B would remove the difference, but A is not clear. A desired effect is not enough to make an action legal.",
+        ["op = move('A', 'B')","Select the operator whose effect addresses the difference."],
+        ["unmet = unmet_preconditions(op, state)","Find that A must first be clear."]],
+      ["The missing precondition becomes a smaller goal. Moving C to the table clears A even though it does not directly achieve A on B.",
+        ["subgoal = clear('A')","Turn the blocked precondition into work to do first."]],
+      ["Clear A, then perform the intended move. This solves the example, but a locally useful choice need not yield an optimal plan.",
+        ["state = achieve(subgoal, state)","Move C to the table to make A available."],
+        ["state = apply(op, state)","Now move A onto B."]]
+    ]
+  },
+  "Problem Reduction":{
+    lesson:[5,59],
+    definition:"Problem reduction breaks a difficult goal into smaller sub-goals whose solutions can be combined.",
+    build:"Decomposes a goal into parts; another method, such as Means-Ends Analysis, can solve each leaf.",
+    use:"You know how to break a hard task into smaller goals. AND needs every child; OR offers alternative routes.",
+    instead:["Planning","The sub-goals compete for resources or undo one another; decomposition alone does not resolve their order."],
+    trace:[
+      ["'Make dinner' is too broad to act on directly. A decomposition supplies structure that a flat list of moves lacks.",
+        ["goal = 'make dinner'","Start with the top-level task."]],
+      ["Getting food, cooking, and setting the table are all needed in this simplified task. Shopping OR delivery can satisfy the food sub-goal.",
+        ["tree = AND(OR('shop', 'delivery'), 'cook', 'set table')","Represent requirements and alternatives with different node types."]],
+      ["Choose one food route and complete the required leaves. Delivery is unused, not disproved or forbidden.",
+        ["solved = {'shop', 'cook', 'set table'}","Record the sub-tasks completed in this walkthrough."]],
+      ["An OR node succeeds when one child succeeds; an AND node needs all children. Success then propagates up to dinner.",
+        ["done = evaluate_goal_tree(tree, solved)","Combine the leaf results according to their AND/OR links."]]
+    ]
+  },
+  "Production Systems":{
+    lesson:[6,67],
+    definition:"A production system repeatedly matches condition-action rules to working memory, selects a rule, and applies its action.",
+    build:"Combines working memory, condition-action rules, and a match-select-act cycle. Unlike a proof alone, firing a rule can change the state.",
+    use:"Explicit rules describe how the agent should respond to its current situation, and you need to inspect which rule fired.",
+    instead:["Planning","You must work out a multi-step route to a future goal, rather than select the next applicable response."],
+    trace:[
+      ["Working memory describes now; rules describe possible responses. Rules whose conditions are false remain available for later.",
+        ["memory = {'light': 'red', 'stopped': False}","Represent the initial traffic-light state."],
+        ["rules = load_traffic_rules()","Load the three condition-action rules shown."]],
+      ["Matching checks rule conditions against memory. Only the red-light rule applies at this point.",
+        ["matches = match(rules, memory)","Build the current set of applicable rules."]],
+      ["Firing the rule records that the agent stopped. Future matches must use this updated memory.",
+        ["memory = fire(matches[0], memory)","Execute the stop action and update working memory."]],
+      ["A new observation changes red to green. Two rules now match, so matching alone cannot decide what fires.",
+        ["memory['light'] = 'green'","Replace the old light observation."],
+        ["matches = match(rules, memory)","Recompute applicable rules after the change."]],
+      ["This example selects the rule with more specific conditions. Specificity is one conflict-resolution policy, not a universal requirement.",
+        ["selected = most_specific(matches)","Choose stopped AND green implies go."],
+        ["memory = fire(selected, memory)","Apply the selected rule's action."]]
+    ]
+  },
+  "Planning":{
+    lesson:[13,172],
+    definition:"Planning constructs an action sequence that achieves goals while respecting preconditions and interactions between actions.",
+    build:"Uses the states, goals, and operators of Means-Ends Analysis, but explicitly handles interactions among goals.",
+    use:"Actions have preconditions and effects, and completing one goal may prevent another.",
+    instead:["Problem Reduction","Sub-tasks can be solved and combined without harmful interactions; a decomposition may be enough."],
+    trace:[
+      ["Both relations must hold together in the final state. Solving each independently may not produce a plan that achieves both.",
+        ["state, goals = read_two_goal_problem()","Read C on A and the targets A on B, B on C."]],
+      ["The tentative plan achieves A on B, but it has not been checked against the second goal.",
+        ["plan = [move('C', 'table'), move('A', 'B')]","Propose a plan for the first goal only."]],
+      ["Putting A on B makes B not clear. That deletes a precondition for moving B onto C, so the tentative ordering conflicts with goal 2.",
+        ["conflict = find_threat(plan, move('B', 'C'))","Detect that the first plan blocks the second goal's action."]],
+      ["Put B on C while B is still clear, then A on B. Simulation must confirm that the final state satisfies both goals.",
+        ["plan = [move('C', 'table'), move('B', 'C'), move('A', 'B')]","Reorder the actions to preserve needed preconditions."],
+        ["check_all_goals(simulate(state, plan), goals)","Verify both goal relations in the resulting state."]]
+    ]
+  },
+  "Constraint Propagation":{
+    lesson:[20,268],
+    definition:"Constraint propagation narrows possible values by passing the consequences of one restriction to related variables.",
+    build:"Represents possible values as domains and relationships as constraints. A local deletion can trigger more deletions elsewhere.",
+    use:"You can rule out values using compatibility constraints without enumerating every complete assignment.",
+    instead:["Generate & Test","Propagation leaves several possibilities; search over the remaining candidates and propagate again after each choice."],
+    trace:[
+      ["A domain lists values still allowed, not values already chosen. X is fixed; Y and Z each have two possibilities.",
+        ["domains = {'X': {'red'}, 'Y': {'red', 'green'}, 'Z': {'red', 'green'}}","Initialize the remaining values for each variable."]],
+      ["Since X can only be red, red in Y has no support under X != Y. Removing it is forced, not a guess.",
+        ["revise(domains, 'Y', 'X', not_equal)","Delete Y values incompatible with every remaining X value."]],
+      ["Y is now green, so green in Z loses its support. The information travels through the shared variable.",
+        ["revise(domains, 'Z', 'Y', not_equal)","Delete green from Z using Y's reduced domain."]],
+      ["Here every domain has one value and both constraints hold. A fixed point in a larger problem can still leave choices or inconsistencies to resolve.",
+        ["assignment = single_values(domains)","Read X=red, Y=green, Z=red."],
+        ["check_constraints(assignment)","Confirm that the complete assignment satisfies all constraints."]]
+    ]
+  },
+  "Configuration":{
+    lesson:[21,280],
+    definition:"Configuration fills the roles in a known design with components that satisfy compatibility constraints.",
+    build:"Applies constraint reasoning to a known design template: fill roles with compatible components.",
+    use:"The overall structure is known and the task is choosing parts, not inventing a new design or an action sequence.",
+    instead:["Planning","The output should be an ordered set of actions. Configuration's output is an assembly, not a schedule."],
+    trace:[
+      ["The engine and battery roles are fixed before choosing parts. The constraint states which combinations are allowed.",
+        ["roles = {'engine': {'V6', 'electric'}, 'battery': {'small', 'large'}}","List candidates for each role."],
+        ["constraints = [electric_requires_large_battery]","Store the compatibility rule."]],
+      ["Choosing an electric engine restricts what can fill other roles. A local selection changes the remaining design space.",
+        ["select(roles, 'engine', 'electric')","Commit the engine role to electric for this branch."]],
+      ["The small battery violates the selected engine's requirement. Propagation removes it without trying a complete invalid assembly.",
+        ["propagate(roles, constraints)","Narrow the battery domain to large."]],
+      ["Every role is filled and the stated constraint holds. This is validity within the template, not proof of a physically complete vehicle design.",
+        ["assembly = require_valid_configuration(roles, constraints)","Return the electric-engine, large-battery combination."]]
+    ]
+  },
+  "Learning by Recording Cases":{
+    lesson:[8,93],
+    definition:"Learning by recording cases stores solved examples so a similar new problem can reuse a previous answer.",
+    build:"Stores solved examples and retrieves them using a similarity measure. Case-Based Reasoning adds adaptation when copying is insufficient.",
+    use:"Similar problems usually share the same answer and useful past cases are available.",
+    instead:["Case-Based Reasoning","The retrieved solution must be modified to fit the new problem rather than copied unchanged."],
+    trace:[
+      ["A case pairs a description with an answer. The new penguin case has features but no assigned label yet.",
+        ["cases = load_labeled_animals()","Retrieve the sparrow, salmon, and bat examples."],
+        ["query = {'feathers', 'swims'}","Describe the new animal without its answer."]],
+      ["Similarity depends on feature weights. Treating swimming as more important than feathers could retrieve the wrong neighbor; these scores are illustrative.",
+        ["scores = similarity(query, cases, weights)","Compute weighted similarity for each stored case."]],
+      ["Select the closest case under that metric. Nearest does not mean certainly correct; the metric encodes your assumptions.",
+        ["nearest = cases[argmax(scores)]","Retrieve the sparrow case, scored 0.7 here."]],
+      ["Copy the sparrow's label without changing its solution. That direct reuse is what distinguishes this trace from adaptation.",
+        ["answer = nearest.label","Assign bird to the penguin query."]]
+    ]
+  },
+  "Case-Based Reasoning":{
+    lesson:[9,101],
+    definition:"Case-based reasoning retrieves a similar past case, adapts its solution, evaluates it, and stores the successful result.",
+    build:"Extends case retrieval with adaptation, evaluation, and retention of the newly solved case.",
+    use:"A past solution is close enough to help, but important differences prevent copying it as-is.",
+    instead:["Learning by Recording Cases","The nearest case's answer already fits; adaptation would add work without changing the result."],
+    trace:[
+      ["Roast chicken is structurally closer to the new task than beef stew. Retrieval supplies a starting solution, not a finished one.",
+        ["case = retrieve_similar('roast duck', library)","Select roast chicken from the case library."]],
+      ["Adapt the old solution to the changed object. The cooking edits are conceptual examples, not a tested recipe.",
+        ["draft = adapt(case, target='duck')","Change the ingredient and relevant cooking parameters."]],
+      ["Evaluation exposes a mismatch that retrieval missed. Revision repairs the candidate before it becomes trusted knowledge.",
+        ["feedback = evaluate(draft)","Identify the excess-fat problem in this example."],
+        ["solution = revise(draft, feedback)","Add the skin and fat-handling changes."]],
+      ["After successful re-evaluation, store the problem with its adapted solution so the next similar task starts closer.",
+        ["if passes_evaluation(solution): retain('roast duck', solution, library)","Retain a verified case, not merely the first attempted adaptation."]]
+    ]
+  },
+  "Analogical Reasoning":{
+    lesson:[18,233],
+    definition:"Analogical reasoning maps relationships from a known situation to a new one and transfers possible solutions or inferences.",
+    build:"Uses relational representations, such as Semantic Networks, to align a known source with a new target.",
+    use:"The useful similarity is in the pattern of relationships, even when objects look different or come from different domains.",
+    instead:["Case-Based Reasoning","A similar case in the same domain offers a solution that can be adapted without a cross-domain structural mapping."],
+    trace:[
+      ["Represent attraction and orbiting as relations, not just 'sun' and 'electron' as labels. This is a simplified historical analogy, not a modern model of electrons.",
+        ["source, target = encode_relations(solar_model, atomic_model)","Keep entities and their directional relationships."]],
+      ["Match the attracting center to the attracting center. Color and physical scale do not support this relational correspondence.",
+        ["mapping = align_relations(source, target)","Map sun to nucleus and planet to electron."]],
+      ["Transfer creates a candidate inference, not a proof of physical truth. Electrons do not follow classical planetary orbits in modern quantum theory.",
+        ["hypothesis = transfer_relation('orbits', mapping)","Propose the mapped relation for checking, not automatic acceptance."]]
+    ]
+  },
+  "Incremental Concept Learning":{
+    lesson:[10,119],
+    definition:"Incremental concept learning revises a concept definition one example at a time, making it broader or more specific.",
+    build:"Uses structured examples to revise one concept definition. Near-misses isolate which relationship needs changing.",
+    use:"Examples arrive one at a time and their meaningful differences can guide small, explainable edits.",
+    instead:["Version Spaces","You want to preserve all consistent hypotheses within a defined hypothesis language, not choose one evolving definition."],
+    trace:[
+      ["Start from a positive example's description. It is a provisional concept that may be too specific or miss a crucial restriction.",
+        ["concept = describe(first_positive_arch)","Initialize the arch concept from the first example."]],
+      ["The negative example is almost an arch. Its one changed relationship makes it easier to locate the cause of failure.",
+        ["difference = compare(concept, near_miss)","Identify that the two posts touch each other."]],
+      ["Specialization narrows the concept so this negative example is excluded while the earlier positive remains valid.",
+        ["concept.require('posts do not touch')","Add the relation missing from the original definition."]],
+      ["The wedge-topped positive shows that a block-shaped top was too restrictive. Generalize that slot, while preserving support and non-touching constraints.",
+        ["concept.generalize('top shape', 'any shape')","Broaden only the feature challenged by the new positive."]]
+    ]
+  },
+  "Version Spaces":{
+    lesson:[19,251],
+    definition:"A version space is the set of hypotheses still consistent with the labeled examples, bounded by specific and general alternatives.",
+    build:"Tracks a set of consistent concepts through its most specific boundary S and most general boundary G.",
+    use:"You have labeled examples, a fixed hypothesis language, and want to delay committing to one rule until the evidence supports it.",
+    instead:["Incremental Concept Learning","You are editing a relational concept using informative near-misses rather than maintaining the full consistent hypothesis set."],
+    trace:[
+      ["S initially accepts nothing; G accepts everything. Real boundaries can contain multiple hypotheses; this tiny two-feature example keeps one at each boundary.",
+        ["S, G = bottom_hypothesis(), ('any', 'any')","Initialize the specific and general boundaries for size and color."]],
+      ["A positive must be included. S expands just enough to cover small-red, while G already permits it.",
+        ["S = minimally_generalize(S, positive=('small', 'red'), within=G)","Move S to (small, red)."]],
+      ["A negative must be excluded. G specializes to small-any; excluding red instead would also reject the known positive.",
+        ["G = minimally_specialize(G, negative=('large', 'red'), above=S)","Narrow G while keeping it consistent with S."]],
+      ["The blue positive forces S to allow any color. S and G meet on small-any within this hypothesis language, not as a universal truth about all future data.",
+        ["S = minimally_generalize(S, positive=('small', 'blue'), within=G)","Broaden color so S equals G."]]
+    ]
+  },
+  "Classification":{
+    lesson:[11,136],
+    definition:"Classification uses an instance's features to place it in a supported category within an existing concept hierarchy.",
+    build:"Uses an existing concept hierarchy to interpret observed features (L11, p. 136). Unlike Concept Learning, this step labels an instance without changing the concepts.",
+    use:"You have a hierarchy of known categories and features that can progressively narrow an instance's label.",
+    instead:["Incremental Concept Learning","The category definition itself needs to change after a new example or near-miss."],
+    trace:[
+      ["Keep the observed features separate from the categories they may imply. The hierarchy and its tests are prior knowledge.",
+        ["features = {'feathers', 'webbed feet', 'quacks'}","Describe the instance to classify."]],
+      ["Feathers support the bird branch in this toy hierarchy. Pruning unrelated branches avoids testing every leaf concept.",
+        ["category = match_top_level(features, taxonomy)","Choose bird and reject the mammal and fish branches."]],
+      ["Webbed feet refine bird to water bird here. Reuse the parent classification rather than starting over.",
+        ["category = refine(category, features)","Descend to the matching child category."]],
+      ["Quacking selects duck in the stored toy taxonomy. Stop when no supported child is more specific; noisy features may require uncertainty instead.",
+        ["category = refine_until_supported_leaf(category, features)","Finish at duck without modifying the taxonomy."]]
+    ]
+  },
+  "Explanation-Based Learning":{
+    lesson:[17,223],
+    definition:"Explanation-based learning uses prior knowledge to explain an example and turns that explanation into a reusable rule.",
+    build:"Uses domain rules to explain why one example meets a known concept, then saves the relevant connection as a reusable rule.",
+    use:"You have a trustworthy theory that explains success; one example can reveal which features actually matter under that theory.",
+    instead:["Incremental Concept Learning","You lack a sufficient domain theory and must use differences across labeled examples to revise a definition."],
+    trace:[
+      ["The red ceramic cup has many features, but appearance alone does not explain its function. The target concept and background theory are already known.",
+        ["example = describe(cup)","Collect the observed properties without treating every property as essential."]],
+      ["Build an explanation from the stored theory: a handle supports lifting, concavity supports containment, and a flat base supports stability in this simplified model.",
+        ["proof = explain(example, goal='cup', theory=domain_theory)","Connect the observed properties to the known concept's requirements."]],
+      ["Only remove features that the explanation did not use. In a richer theory, material could matter for leakage or heat resistance.",
+        ["relevant = premises_used(proof)","Retain the proof's premises, not every feature of the example."]],
+      ["Generalize the explanation into a reusable shortcut. The displayed cup rule is valid only under this toy theory, not a definition of every real cup.",
+        ["rule = generalize_proof(proof, relevant)","Save the connection so a later example need not repeat the whole proof."]]
+    ]
+  },
+  "Meta-Reasoning":{
+    lesson:[24,315],
+    definition:"Meta-reasoning examines an agent's knowledge, reasoning, and learning to decide when to continue, repair, or change its approach.",
+    build:"Adds a meta-level that monitors knowledge, reasoning, and learning (L24, pp. 315–318). The example focuses on strategy selection, one part of that wider role.",
+    use:"The agent needs to notice an impasse or wasteful reasoning and choose a better approach using evidence.",
+    instead:["Learning by Correcting Mistakes","The strategy is suitable but a specific piece of knowledge is faulty; repair that knowledge instead of switching methods."],
+    trace:[
+      ["The object level tries to solve the puzzle. The meta level observes how that process is going.",
+        ["solver = semantic_network_solver","Select the current problem-solving strategy."]],
+      ["No matching option is a failure signal, not a diagnosis. A missing relation, bad rule, or unsuitable representation could all cause it.",
+        ["result, trace = run_and_monitor(solver, problem)","Keep the result and evidence about how the solver reached it."]],
+      ["In this example, the monitor attributes failure to the strategy. A real agent needs evidence for that attribution; failure alone does not prove it.",
+        ["cause = diagnose_reasoning(trace)","Distinguish missing knowledge, wrong knowledge, and strategy mismatch."]],
+      ["The diagnosis justifies trying a visual method. Limit retries so reflection does not replace actually solving the problem.",
+        ["solver = visuospatial_solver","Switch the object-level strategy."],
+        ["result = run_with_budget(solver, problem)","Resume solving with a bounded time or step budget."]]
+    ]
+  },
+  "Diagnosis":{
+    lesson:[22,292],
+    definition:"Diagnosis reasons backward from observed symptoms to possible causes and uses evidence to distinguish them.",
+    build:"Reasons backward from symptoms to faults in an external system (L22, p. 292). It becomes meta-reasoning when the object being diagnosed is the agent's own cognition.",
+    use:"You see a failure and need tests that distinguish explanations, rather than just rules that predict what a known fault would do.",
+    instead:["Logic","You already know the cause and want to deduce its effects. Diagnosis inverts that direction and may leave several explanations."],
+    trace:[
+      ["A waiting print job with no output is evidence of a problem, not enough to identify the cause. This toy model assumes one of three faults.",
+        ["symptoms = {'job waiting', 'no output'}","Record the observed effects."]],
+      ["Several causes could explain the same symptoms. Abduction proposes explanations; it does not establish that each one is true.",
+        ["hypotheses = explain_symptoms(symptoms, printer_model)","Consider a paused queue, empty tray, or disconnected printer."]],
+      ["Finding paper present contradicts the empty-tray hypothesis. It does not yet distinguish a paused queue from a disconnected printer.",
+        ["hypotheses = consistent_with(hypotheses, paper_present=True)","Remove the hypothesis contradicted by this test."]],
+      ["Reachability rejects disconnection, and the queue setting supports the remaining explanation. The conclusion is limited to the toy model and its reliable-test assumption.",
+        ["hypotheses = consistent_with(hypotheses, reachable=True, paused=True)","Check both remaining explanations against the new observations."],
+        ["diagnosis = require_one(hypotheses)","Identify the paused queue within this single-fault model."]]
+    ]
+  },
+  "Learning by Correcting Mistakes":{
+    lesson:[23,304],
+    definition:"Learning by correcting mistakes traces an incorrect result to faulty knowledge and revises the part that caused the error.",
+    build:"Uses a known error and its explanation to revise faulty knowledge. L23 (p. 304) introduces this as meta-reasoning, so it sits under Oversee while also performing learning.",
+    use:"Feedback says the answer was wrong, and you can trace it to a particular rule or concept condition.",
+    instead:["Meta-Reasoning","The representation or strategy is the wrong tool, rather than one identifiable piece of stored knowledge."],
+    trace:[
+      ["The answer is wrong only because feedback supplies a trusted correction. The agent cannot infer its mistake from its own confidence.",
+        ["error = compare_prediction('cup', correct_label='bowl')","Record the mismatch for this red bowl."]],
+      ["Look for the knowledge actually used, not every fact in memory. The red-implies-cup rule explains this particular wrong conclusion.",
+        ["trace = trace_prediction(error)","Inspect the conditions and rules that produced cup."]],
+      ["Blame needs a causal link to the error. Merely noticing that the object is red would not justify changing a color rule elsewhere.",
+        ["faulty_rule = isolate_fault(trace, error)","Identify the unsupported red-implies-cup rule."]],
+      ["Remove the spurious color condition and add the handle requirement in this toy concept. Recheck past cases: not all real cups have handles.",
+        ["concept = patch(concept, remove='red', require='has handle')","Revise only the implicated part of the definition."],
+        ["recheck_known_cases(concept)","Check that the repair fixes this error without breaking accepted examples."]]
+    ]
+  },
+  "Ethics in AI":{
+    lesson:[25,340],
+    definition:"Ethics in AI examines how an agent's design and use affect people, including fairness, accountability, and opportunities to challenge its decisions.",
+    build:"Examines choices across the whole agent: data, error costs, explanations, deployment, and responsibility. It is not a final cleanup step.",
+    use:"Always consider who is affected, especially when errors have unequal or serious consequences. These questions guide design decisions, not an automatic ethics score.",
+    instead:["Meta-Reasoning","You are diagnosing the solver's technical performance. A more accurate or faster strategy alone does not settle whether deployment is responsible."],
+    trace:[
+      ["Training data represents a population and collection process. One hospital's patients may not represent everyone who will encounter the system.",
+        ["data_scope = document_population(training_data)","Record whose cases the system learned from and how they were collected."]],
+      ["Ask where errors concentrate rather than relying only on average accuracy. Population differences signal a risk to investigate, not automatic proof of failure.",
+        ["error_report = evaluate_across_populations(agent, validation_data)","Measure relevant differences in errors and their consequences."]],
+      ["An explanation should connect the output to actual evidence and limitations. A plausible story is not enough if it misrepresents the system's reasoning.",
+        ["evidence = audit_explanation(output, reasoning_trace)","Check whether the explanation reflects the evidence actually used."]],
+      ["Responsibility includes who can challenge an output, correct harm, and stop use. Naming a person does not by itself discharge those duties.",
+        ["review_process = define_oversight(owners, appeal_path, stop_conditions)","Specify accountable review and intervention before deployment."]]
+    ]
+  }
+};
+
+/* ---------- state + render ---------- */
+const $=id=>document.getElementById(id);
+/* one icon set: 24 grid, 1.75 stroke, round joins */
+const I=(p,s=16)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const IC={
+  perceive:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  represent:'<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.2 10.9 7.6-3.8M8.2 13.1l7.6 3.8"/>',
+  reason:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M6.5 10v4A3.5 3.5 0 0 0 10 17.5h4"/>',
+  reuse:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  learn:'<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  oversee:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>',
+  ethics:'<path d="M12 3v18M5 21h14M4 7h16M6 7l-4 7h8L6 7ZM18 7l-4 7h8l-4-7Z"/>',
+  back:'<path d="m15 6-6 6 6 6"/>', next:'<path d="m9 6 6 6-6 6"/>',
+  replay:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  play:'<path d="M7 4.5v15l12-7.5-12-7.5Z"/>', pause:'<path d="M8 5v14M16 5v14"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>', minus:'<path d="M5 12h14"/>', focus:'<path d="m9 6 6 6-6 6"/>',
+  warn:'<path d="M12 4 2.5 20h19L12 4Z"/><path d="M12 10v4.5M12 17.5v.01"/>',
+  pencil:'<path d="m4 20 1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1Z"/>',
+  keys:'<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8"/>'
+};
+const SIG={perceive:"Interpret input",represent:"Structure knowledge",reason:"Find an answer",
+  reuse:"Memory → Reason",learn:"Examples / results → Memory",oversee:"Monitors Reason, Learn, and Memory",ethics:"Not a runtime step"};
+const MARK={"+":["add","plus","added: "],"-":["del","minus","removed: "],"*":["cur","focus","in focus: "],"~":["idle","",""]};
+let cur=0, step=0, timer=null, changed=0, activeRoute=null;
+const mobile=matchMedia("(max-width:760px), (max-width:950px) and (pointer:coarse)");
+const escapeHtml=text=>text.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const lessonLabel=m=>{const [number,page]=G[m.n].lesson;return `Lesson ${String(number).padStart(2,"0")} · ${LESSONS[number]} · eBook p. ${page}`;};
+const topicSlug=m=>m.n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+
+function saveRoute(hash){
+  $("route-error").hidden=true;
+  if(location.hash!==hash)history.pushState(null,"",hash);
+  activeRoute=hash;
+}
+function restoreRoute(){
+  const hash=location.hash;
+  if(hash===activeRoute)return;
+  activeRoute=hash;
+  $("route-error").hidden=true;
+  if(!hash||hash==="#overview"){showOverview(false);return;}
+  const [section,topic,...extra]=hash.slice(1).split("/");
+  const index=extra.length?-1:M.findIndex(m=>m.s===section&&(!topic||topicSlug(m)===topic));
+  if(index<0){
+    showOverview(false);
+    $("route-error").textContent="This link does not match a section or topic. Choose one from the agent map.";
+    $("route-error").hidden=false;
+    return;
+  }
+  pick(index);
+  showDetail(false);
+}
+
+function line(c){const k=MARK[c[0]], live=k&&k[1];
+  return `<div class="ln ${k?k[0]:""}"${live?` style="--d:${(changed++)*55}ms"`:""}><span class="g" aria-hidden="true">${live?I(IC[k[1]],13):""}</span><span class="tx">${live?`<span class="sr">${k[2]}</span>`:""}${k?c.slice(1):c}</span></div>`;}
+function stageBtn([k,nm],s){
+  const order=STAGES.findIndex(stage=>stage[0]===k);
+  return `<button class="st" data-stage="${k}" aria-pressed="${k===s}"><span class="ico" aria-hidden="true">${order<3?order+1:I(IC[k])}</span><span class="nm">${nm}</span><span class="sig">${SIG[k]}</span></button>`;}
+
+function renderNav(){
+  const s=M[cur].s, stageName=STAGES.find(x=>x[0]===s)[1];
+  $("pipe").innerHTML=STAGES.slice(0,3).map(st=>`<li>${stageBtn(st,s)}</li>`).join("");
+  $("loops").innerHTML=STAGES.slice(3,5).map(st=>stageBtn(st,s)).join("");
+  $("monitor").innerHTML=stageBtn(STAGES.find(st=>st[0]==="oversee"),s);
+  $("ethics").innerHTML=stageBtn(STAGES.find(st=>st[0]==="ethics"),s);
+  $("mh").textContent=stageName+" topics";
+  $("methods").innerHTML=M.map((m,i)=>m.s!==s?"":`<button class="m" data-m="${i}" aria-pressed="${i===cur}">${escapeHtml(m.n)}</button>`).join("");
+  $("current-stage").textContent=stageName;
+  $("topic-label").textContent="Topic in "+stageName;
+  $("topic-select").innerHTML=M.map((m,i)=>m.s!==s?"":`<option value="${i}"${i===cur?" selected":""}>${escapeHtml(m.n)}</option>`).join("");
+}
+function renderHead(){
+  const m=M[cur], g=G[m.n], [alternative,reason]=g.instead;
+  $("name").textContent=m.n; $("definition").textContent=g.definition; $("br").textContent=m.br; $("hw").textContent=m.hw;
+  $("lesson").textContent=`Lesson ${String(g.lesson[0]).padStart(2,"0")}`;
+  $("course-reference").textContent=lessonLabel(m);
+  $("build").textContent=g.build;
+  $("choose").textContent=g.use;
+  $("state-title").textContent=g.runnable?"Picture comparison":"State now";
+  $("code-hint").textContent=g.runnable
+    ?"Runnable Python 3. Run all code shown, from the top. Next reveals code; it does not execute it. Green marks new code."
+    :"Python-like pseudocode, not runnable Python. Helper names stand for operations to implement. Green = new this step.";
+  $("legend").innerHTML=(g.runnable?"":`<span>${I(IC.plus,13)}added</span><span>${I(IC.minus,13)}removed</span><span>${I(IC.focus,13)}in focus</span>`)+`<span class="keys">${I(IC.keys,14)}Arrow keys step</span>`;
+  $("instead").innerHTML=`${escapeHtml(reason)} <button class="text-link" data-m="${M.findIndex(x=>x.n===alternative)}">Explore ${escapeHtml(alternative)}</button>`;
+  $("dots").innerHTML=m.st.map((_,i)=>`<button data-step="${i}" aria-label="Go to step ${i+1}"></button>`).join("");
+}
+function semanticFigure(label,shape,size,relation="above",note="",highlight=false){
+  const y=relation==="above"?43:125, squareY=relation==="above"?103:21;
+  const r=size==="small"?14:27;
+  const object=shape==="circle"?`<circle cx="80" cy="${y}" r="${r}"/>`:
+    `<polygon points="80,${y-r} ${80+r},${y+r} ${80-r},${y+r}"/>`;
+  const description=`${size} ${shape} ${relation} a square`;
+  return `<figure class="semantic-figure"><strong>${label}</strong>
+    <svg viewBox="0 0 160 168" role="img" aria-label="${description}">
+      <g fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="58" y="${squareY}" width="44" height="44"/>
+        <g class="semantic-object${highlight?" changed":""}">${object}</g>
+      </g>
+    </svg><figcaption>${description}${note?`<span><strong>${note}</strong></span>`:""}</figcaption></figure>`;
+}
+function semanticBoard(index){
+  if(index<2)return `<div class="semantic-pictures">
+    ${semanticFigure("A","circle","small")}
+    ${semanticFigure("B","circle","large","above",index===1?"Size changed":"",index===1)}
+    </div>${index===1?'<p class="semantic-note"><strong>Change:</strong> size: small → large.<br><strong>Unchanged:</strong> the shapes and their above relationship.</p>':""}`;
+  if(index===2)return `<div class="semantic-pictures">
+    ${semanticFigure("C","triangle","small")}
+    ${semanticFigure("Prediction","triangle","large","above","Size changed",true)}
+    </div>`;
+  return `<p class="semantic-note">Looking for a <strong>large triangle above a square.</strong></p>
+    <div class="semantic-pictures semantic-options">
+    ${semanticFigure("Option 1","triangle","small","above","Too small")}
+    ${semanticFigure("Option 2","triangle","large","above","Matches",true)}
+    ${semanticFigure("Option 3","triangle","large","below","Wrong position")}
+    </div>`;
+}
+function renderStep(){
+  const m=M[cur], g=G[m.n], [cap,...lanes]=m.st[step], last=step===m.st.length-1;
+  changed=0;
+  $("board").innerHTML=m.n==="Semantic Networks"?semanticBoard(step):
+    lanes.map(([lb,items])=>`<div class="lane"><div class="var">${lb}</div><div class="lines">${items.map(line).join("")}</div></div>`).join("");
+  $("why").textContent=g.trace[step][0];
+  $("code").innerHTML=g.trace.slice(0,step+1).flatMap(([, ...lines],i)=>lines.map(([code,note])=>
+    `<div class="code-line${i===step?" new":""}"><code>${escapeHtml(code)}</code>${i===step&&!g.runnable?`<small><strong>New:</strong> ${escapeHtml(note)}</small>`:""}</div>`
+  )).join("");
+  const added=g.trace[step].slice(1).reduce((count,[code])=>count+code.split("\n").length,0);
+  $("code-count").textContent=`+${added} new ${added===1?"line":"lines"}`;
+  const output=g.output?.slice(0,step+1).filter(Boolean).join("\n")||"";
+  $("code-output").hidden=!output;
+  $("output").textContent=output;
+  const c=$("cap"); c.textContent=cap; c.classList.remove("swap"); void c.offsetWidth; c.classList.add("swap");
+  $("count").textContent=`${step+1}/${m.st.length}`;
+  $("prev").disabled=step===0;
+  $("next").innerHTML=last?`${I(IC.replay,15)}Replay`:`Next${I(IC.next,15)}`;
+  [...$("dots").children].forEach((d,i)=>{
+    d.className=i<=step?"on":"";
+    if(i===step)d.setAttribute("aria-current","step");else d.removeAttribute("aria-current");
+  });
+}
+function readingDelay(){
+  const [why,...lines]=G[M[cur].n].trace[step];
+  const words=[M[cur].st[step][0],why,...lines.flat()].join(" ").split(/\s+/).length;
+  return Math.max(6000,words*260);
+}
+function setPlay(on){
+  clearTimeout(timer); timer=null;
+  if(on){ if(step===M[cur].st.length-1){step=0;renderStep();}
+    const advance=()=>{
+      step++;renderStep();
+      if(step===M[cur].st.length-1)setPlay(false);
+      else timer=setTimeout(advance,readingDelay());
+    };
+    timer=setTimeout(advance,readingDelay());
+  }
+  $("play").innerHTML=on?`${I(IC.pause,15)}Pause`:`${I(IC.play,15)}Play`;
+  $("play").setAttribute("aria-pressed",String(on));
+  $("play").title=on?"Pause automatic steps":"Play at reading pace; use Next to go faster";
+}
+function pick(i){setPlay(false);cur=i;step=0;renderNav();renderHead();renderStep();}
+function go(d){setPlay(false);const n=M[cur].st.length; step=d>0?(step===n-1?0:step+1):Math.max(0,step-1); renderStep();}
+function showDetail(syncURL=true){
+  $("app").dataset.screen="detail";
+  if(syncURL)saveRoute(`#${M[cur].s}/${topicSlug(M[cur])}`);
+  if(mobile.matches){window.scrollTo(0,0);$("name").focus({preventScroll:true});}
+}
+function showOverview(syncURL=true){
+  setPlay(false);
+  $("app").dataset.screen="overview";
+  if(syncURL)saveRoute("#overview");
+  window.scrollTo(0,0);
+  document.querySelector(`[data-stage="${M[cur].s}"]`).focus({preventScroll:true});
+}
+
+$("prev").innerHTML=`${I(IC.back,15)}Back`;
+$("prev").title="Previous step";
+$("all-stages").innerHTML=`${I(IC.back,16)}All stages`;
+$("ibr").innerHTML=I(IC.warn,14); $("ihw").innerHTML=I(IC.pencil,14);
+$("lesson-map").innerHTML=STAGES.map(([stage,name])=>`<h3>${name}</h3>
+  <table class="map-table"><caption class="sr">${name} methods and course lessons</caption><thead><tr><th scope="col">Method</th><th scope="col">Course lesson / eBook page</th></tr></thead><tbody>${
+    M.flatMap((m,i)=>m.s===stage?[`<tr><td><button class="text-link" data-m="${i}">${escapeHtml(m.n)}</button></td><td>${escapeHtml(lessonLabel(m))}</td></tr>`]:[]).join("")
+  }</tbody></table>`).join("");
+
+document.addEventListener("click",e=>{
+  const st=e.target.closest("[data-stage]"); if(st){
+    const stage=st.dataset.stage;
+    if(M[cur].s!==stage)pick(M.findIndex(m=>m.s===stage));
+    showDetail();
+    if(!mobile.matches)document.querySelector(`[data-stage="${stage}"]`).focus({preventScroll:true});
+    return;
+  }
+  const me=e.target.closest("[data-m]"); if(me){
+    const fromContent=me.closest("#lesson-map,#instead");
+    pick(+me.dataset.m);
+    showDetail();
+    if(fromContent){$("name").focus({preventScroll:true});$("name").scrollIntoView({block:"start"});}
+    else if(!mobile.matches)document.querySelector(`#methods [data-m="${cur}"]`).focus({preventScroll:true});
+    return;
+  }
+  const dot=e.target.closest("[data-step]"); if(dot){setPlay(false);step=+dot.dataset.step;renderStep();}
+});
+$("prev").addEventListener("click",()=>go(-1));
+$("next").addEventListener("click",()=>go(1));
+$("play").addEventListener("click",()=>setPlay(!timer));
+$("all-stages").addEventListener("click",()=>showOverview());
+$("topic-select").addEventListener("change",e=>{pick(+e.target.value);showDetail();});
+mobile.addEventListener("change",()=>{
+  if(mobile.matches&&$("app").dataset.screen==="overview")setPlay(false);
+});
+document.addEventListener("keydown",e=>{
+  if(mobile.matches&&$("app").dataset.screen==="overview")return;
+  if(e.target.closest("input,textarea,select,[contenteditable]")||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==="ArrowRight"){go(1);e.preventDefault();}
+  if(e.key==="ArrowLeft"){go(-1);e.preventDefault();}
+});
+window.addEventListener("popstate",restoreRoute);
+window.addEventListener("hashchange",restoreRoute);
+pick(cur);
+restoreRoute();
+</script>
+
+</body></html>
