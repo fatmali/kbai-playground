@@ -135,6 +135,12 @@ summary{cursor:pointer;font-weight:600;padding:5px 0}
 .method-guide dl{margin:10px 0 0;display:grid;gap:10px}
 .method-guide dt{font-size:12px;color:var(--muted)}
 .method-guide dd{margin:2px 0 0;max-width:72ch}
+.setup{margin:20px 24px 0;padding-bottom:20px;border-bottom:1px solid var(--rule)}
+.setup h4{font-size:15px;margin:0}
+.setup-scope{font-size:13px;color:var(--muted);line-height:1.5;margin:8px 0 0}
+.setup dl{display:grid;gap:14px;margin:16px 0 0}
+.setup dt{font-size:12.5px;font-weight:500;color:var(--muted)}
+.setup dd{margin:3px 0 0;line-height:1.6;overflow-wrap:anywhere}
 .text-link{padding:0;text-decoration:underline;text-underline-offset:3px;color:inherit}
 .why{margin:6px 24px 18px;max-width:72ch;line-height:1.6}
 .walkthrough{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin:0 24px 16px;align-items:start}
@@ -248,6 +254,9 @@ a{color:inherit;text-underline-offset:3px}
   .notes div+div{border-left:0;border-top:1px solid var(--rule)}
   .rail-intro{padding:0;font-size:15px;line-height:1.5;max-width:34ch}
   .method-guide{margin:16px 0 0}
+  .setup{margin:20px 0 0}
+  .setup h4{font-size:17px}
+  .setup dt,.setup-scope{font-size:14px}
   summary{min-height:44px;display:list-item;align-content:center;padding:8px 0;font-size:14px}
   .why{margin:0 0 22px}
   .walkthrough{margin:0 0 22px;gap:24px}
@@ -269,7 +278,7 @@ a{color:inherit;text-underline-offset:3px}
   <p class="route-error" id="route-error" role="status" hidden></p>
   <aside class="rail">
     <h1>The Knowledge Based Agent</h1>
-    <p class="rail-intro">Follow the input to an answer, then see how memory and learning support the next attempt.</p>
+    <p class="rail-intro">Explore an agent's roles. These standalone examples share concepts, not a running state.</p>
     <nav class="grp topic-nav" id="method-nav" aria-label="Topics"><h2 id="mh"></h2><div class="mlist" id="methods"></div></nav>
     <nav class="grp" aria-label="Pipeline and cognitive feedback">
       <h2>Pipeline</h2>
@@ -303,6 +312,16 @@ a{color:inherit;text-underline-offset:3px}
     <section class="notes-pane" id="notes-pane" aria-labelledby="notes-title">
     <h3 class="pane-title" id="notes-title">Notes</h3>
     <p class="definition" id="definition"></p>
+    <section class="setup" aria-labelledby="setup-title">
+      <h4 id="setup-title">What this example assumes</h4>
+      <p class="setup-scope">Each walkthrough stands alone; the agent map is not a required execution order.</p>
+      <dl>
+        <div><dt>Already available</dt><dd id="setup-available"></dd></div>
+        <div><dt>Where it comes from</dt><dd id="setup-origin"></dd></div>
+        <div><dt>What this method adds</dt><dd id="setup-adds"></dd></div>
+        <div><dt>What the walkthrough leaves out</dt><dd id="setup-omitted"></dd></div>
+      </dl>
+    </section>
     <details class="method-guide" id="method-guide">
       <summary>How it builds on other tools · When to choose it</summary>
       <dl>
@@ -375,12 +394,12 @@ const STAGES=[
 const M=[
 /* PERCEIVE */
 {s:"perceive",n:"Understanding",io:"ambiguous sentence → one meaning",
- br:"Two frames both fit.",hw:"Show the slot that breaks each losing reading.",
+ br:"The right interpretation is missing, or several candidates fit.",hw:"What stored frame knowledge would justify rejecting the tool reading?",
  st:[
   ["Ambiguous input arrives.",["input",["the plane left for the coast"]]],
-  ["Propose candidate frames.",["input",["the plane left for the coast"]],["frames",["aircraft","woodworking tool"]]],
-  ["Bind slots. A contradiction kills a frame.",["aircraft",["+destination: coast","+action: depart"]],["tool",["-destination: ?","-action: depart"]]],
-  ["The survivor is the meaning.",["meaning",["*plane = aircraft"]]]]},
+  ["Retrieve frames already in memory.",["input",["the plane left for the coast"]],["frames",["aircraft","woodworking tool"]]],
+  ["Check the assumed frame constraints.",["aircraft",["+destination: coast","+action: depart"]],["tool",["-destination: ?","-action: depart"]]],
+  ["The surviving candidate is the chosen reading.",["meaning",["*plane = aircraft"]]]]},
 {s:"perceive",n:"Common Sense Reasoning",io:"action sentence → unstated facts",
  br:"Verb maps to no single primitive.",hw:"Name the primitive first, then list its consequences.",
  st:[
@@ -495,7 +514,7 @@ const M=[
 
 /* REUSE */
 {s:"reuse",n:"Learning by Recording Cases",io:"new problem + cases → nearest case's answer",
- br:"Wrong features pick the wrong neighbor.",hw:"Justify the similarity metric.",
+ br:"Wrong features pick the wrong neighbor.",hw:"What feature weights would make the chosen neighbor defensible?",
  st:[
   ["A library of solved cases. A new problem.",["cases",["sparrow → bird","salmon → fish","bat → mammal"]],["new",["*penguin: feathers, swims"]]],
   ["Score similarity to every case.",["cases",["sparrow 0.7","salmon 0.4","bat 0.2"]],["new",["penguin: feathers, swims"]]],
@@ -576,6 +595,12 @@ const LESSONS={
 const G={
   "Understanding":{
     lesson:[14,189],
+    setup:{
+      available:"Frame templates for two candidate meanings of 'plane', knowledge linking words to those frames, and rules for filling and checking their slots.",
+      origin:"These are assumed to be in memory before the sentence arrives. They could be authored or learned earlier; this example does not specify how. No earlier walkthrough creates them.",
+      adds:"Use the sentence to activate candidate meanings, bind the described roles, and compare their fit. Understanding uses stored representations; it does not first invent them from the sentence.",
+      omitted:"The frame definitions, retrieval mechanism, bind_roles, and consistent are not implemented. Rejecting the tool reading is a stipulated toy outcome; context could permit a transported tool in ordinary language."
+    },
     definition:"Understanding uses context and stored knowledge to choose an interpretation of an input.",
     build:"Uses Frames (L07) to supply possible meanings, then tests which meaning fits the sentence.",
     use:"The words are known but their intended meaning is ambiguous: does 'plane' mean an aircraft or a tool?",
@@ -583,23 +608,29 @@ const G={
     trace:[
       ["Do not commit to a meaning for 'plane' yet. The rest of the sentence provides evidence for choosing one.",
         ["sentence = 'the plane left for the coast'","Keep the input before interpreting it."]],
-      ["Retrieve both familiar senses. This is candidate generation over meanings, not a random guess.",
-        ["frames = [aircraft_frame, tool_frame]","Load the two stored interpretations."]],
-      ["A departure and destination fit the aircraft frame. The ordinary tool frame cannot bind those roles; the mismatch removes it in this simplified context.",
+      ["The two frame templates must already exist in memory. This list supplies the candidates; it does not implement retrieval or learn the meanings of 'plane'.",
+        ["frames = [aircraft_frame, tool_frame]","Use two assumed templates; their definitions and selection are not shown."]],
+      ["The example assumes frame constraints that admit the aircraft reading and reject the tool reading. Those constraints are not implemented here, and ordinary language can also describe a tool being transported.",
         ["bound = [bind_roles(f, sentence) for f in frames]","Try filling each frame's slots from the sentence."],
         ["valid = [f for f in bound if consistent(f)]","Keep only interpretations whose constraints hold."]],
-      ["Select the surviving interpretation, not just the most familiar word sense. If both still fit, more context is needed.",
-        ["meaning = require_one(valid)","Return the aircraft reading; report ambiguity if there is not one survivor."]]
+      ["Choose the survivor among these supplied candidates, not the most familiar word sense. This does not rule out unmodeled meanings; if none or several fit, more context or different frames are needed.",
+        ["meaning = require_one(valid)","Return a reading only if exactly one supplied candidate survives."]]
     ]
   },
   "Common Sense Reasoning":{
     lesson:[15,200],
+    setup:{
+      available:"A way to parse the sentence, a mapping from 'gave' to ATRANS, and a stored action model saying that a completed gift transfers ownership.",
+      origin:"The sentence is supplied input. The vocabulary, role knowledge, and action effects are prior knowledge, not facts learned from this one sentence; their acquisition is not shown.",
+      adds:"Bind John, Mary, and the book to the action's roles, then infer ownership facts that were not stated separately.",
+      omitted:"parse, primitive, and effects are placeholders. The trace assumes the gift completed and ignores exceptions such as a failed transfer; it does not build a language parser or learn an action model."
+    },
     definition:"Common sense reasoning uses everyday knowledge about actions to infer facts that were not explicitly stated.",
     build:"Adds action knowledge to a parsed sentence: a known primitive connects an event to its consequences.",
     use:"You need facts that were not said explicitly, such as who owns an object after a completed gift.",
     instead:["Scripts","The gap concerns a sequence of events, such as ordering before eating, rather than one action's effects."],
     trace:[
-      ["The sentence states a gift, but does not separately list who owns the book afterward.",
+      ["The sentence states a gift, but does not separately list who owns the book afterward. Parsing it into an event already requires language knowledge; parse is a placeholder for that work.",
         ["event = parse('John gave Mary a book')","Extract the action and participants."]],
       ["ATRANS means transfer of an abstract relationship, here ownership. It supplies reusable knowledge about 'give' rather than a rule for this one sentence.",
         ["act = primitive(event.verb)","Map 'gave' to the stored ATRANS action model."]],
@@ -611,6 +642,12 @@ const G={
   },
   "Visuospatial Reasoning":{
     lesson:[25,327],
+    setup:{
+      available:"The problem figures and answer options, a set of candidate visual operations such as rotation, and a rule for comparing transformed images.",
+      origin:"The figures are supplied by the problem. Operations and scoring criteria must be provided by an implementation; this example does not explain how they were chosen.",
+      adds:"Compare A with B, transfer a candidate transformation to C, and compare the prediction with the options using geometry rather than object names.",
+      omitted:"The page draws SVG illustrations, not a pixel-processing pipeline. Image reading, alignment, operation search, and overlap scoring are placeholders; the displayed percentages are illustrative, not measured."
+    },
     definition:"Visuospatial reasoning works with shapes, positions, and transformations to solve problems using visual information.",
     build:"Uses visual structure directly. It can replace or complement a Semantic Network when naming objects loses important geometry.",
     use:"Rotation, reflection, alignment, or pixel-level patterns explain the change better than object labels.",
@@ -629,8 +666,14 @@ const G={
   },
   "Semantic Networks":{
     lesson:[3,28],
+    setup:{
+      available:"Recognized objects, their correspondence across pictures, and a vocabulary for shape, size, and spatial relationships. The task assumes an A-to-B edit should transfer to C.",
+      origin:"The author encodes the pictures directly in Python dictionaries. The code does not obtain them from a previous Perceive pass or detect the shapes from pixels.",
+      adds:"Make object properties and relationships explicit, compare those descriptions, transfer the size edit, and check every recorded detail of the answer options.",
+      omitted:"Recognition and object matching are not implemented. This runnable example fixes the reference object and relationship with assertions; it does not search all possible transformations or handle general multi-object networks."
+    },
     definition:"A semantic network represents objects or concepts as nodes and their relationships as links.",
-    build:"Starts after Perceive identifies the shapes. Represent stores the objects and their relationships; Reason can then compare these descriptions.",
+    build:"Assumes recognized object descriptions and records their relationships for comparison. Recognition is supplied here, not performed by an earlier walkthrough; reasoning can also help interpret what is seen.",
     use:"Object properties and relations matter more than exact pixels; you want to explain a transformation as explicit edits.",
     instead:["Frames","You mainly need named slots and defaults for one familiar situation. Use Visuospatial Reasoning for geometry that a graph misses."],
     runnable:true,
@@ -694,6 +737,12 @@ for number, option in enumerate(options, start=1):
   },
   "Frames":{
     lesson:[7,82],
+    setup:{
+      available:"A restaurant frame with named slots and typical defaults, plus the observation that pasta was eaten.",
+      origin:"The template is assumed to be stored knowledge about restaurant visits. Its design or learning is not shown. The pasta observation is supplied separately by this example.",
+      adds:"Instantiate that template for a particular visit, fill observed slots, and keep unobserved defaults explicitly provisional.",
+      omitted:"copy_frame assumes an existing template; it does not learn the schema. Sentence interpretation, template selection, and a working mechanism for revising contradicted defaults are not implemented."
+    },
     definition:"A frame organizes knowledge about a familiar object or situation into slots, some with revisable default values.",
     build:"Packages related knowledge into slots. Understanding (L14) uses frames as candidate meanings; Scripts (L16) add event order.",
     use:"You recognize a familiar type of situation but only some details were observed. Defaults let you reason provisionally.",
@@ -709,12 +758,18 @@ for number, option in enumerate(options, start=1):
   },
   "Scripts":{
     lesson:[16,212],
+    setup:{
+      available:"A stored restaurant event sequence and knowledge connecting cues such as tipping to that script. Tipping and leaving are the supplied observations.",
+      origin:"The routine must already be in memory; it is not reconstructed from the two observed events. How the routine and cue associations were acquired is unspecified.",
+      adds:"Align the observed events with a familiar sequence and infer likely omitted events while distinguishing them from observations.",
+      omitted:"The restaurant candidate is chosen for the example. Script learning, cue-based selection, retrieval, and gap inference are not implemented; other situations can fit the same cues."
+    },
     definition:"A script describes a familiar sequence of events so an agent can interpret a story and infer likely missing steps.",
     build:"Extends a frame from 'what is usually present' to 'what usually happens next.'",
     use:"A brief story omits routine events and their order helps explain what probably happened.",
     instead:["Planning","You need to construct a future action sequence that achieves a goal, not infer a familiar past sequence."],
     trace:[
-      ["Tipping is a cue for a restaurant visit in this example. A script is retrieved from memory, not invented from the two observed events.",
+      ["Tipping suggests a restaurant visit in this example, but that association is prior knowledge. The code is handed the name 'restaurant'; it does not work out which script to retrieve from the story.",
         ["script = retrieve_script('restaurant')","Load a plausible event pattern for the story."]],
       ["The stored order connects entering, ordering, eating, paying, tipping, and leaving. That sequence is the extra knowledge beyond a frame.",
         ["scenes = script.scenes","Read the usual ordered events."]],
@@ -726,6 +781,12 @@ for number, option in enumerate(options, start=1):
   },
   "Logic":{
     lesson:[12,149],
+    setup:{
+      available:"The meanings of Human and Mortal, the asserted fact Human(Socrates), the universal rule that humans are mortal, and a logical inference procedure.",
+      origin:"The fact and rule are supplied premises. Their encoding, evidence, and acquisition are outside this example; inference does not establish them from nothing.",
+      adds:"Instantiate the rule for Socrates and derive a consequence using modus ponens, conditional on the supplied premises.",
+      omitted:"Natural-language translation, checking the premises against the world, and the formula/substitution/inference implementations are not shown. Deriving a conclusion does not independently verify its premises."
+    },
     definition:"Logic expresses facts and rules precisely so an agent can derive conclusions that follow from them.",
     build:"Gives representations precise truth conditions; inference rules then derive consequences without relying on defaults.",
     use:"You can state dependable facts and rules and need a traceable proof of a conclusion.",
@@ -742,6 +803,12 @@ for number, option in enumerate(options, start=1):
   },
   "Generate & Test":{
     lesson:[4,43],
+    setup:{
+      available:"A represented problem, a candidate space and generator, and requirements that define the basic and additional tests.",
+      origin:"An implementation must obtain the requirements from the problem and supply the generation/testing procedures. Here their definitions are unspecified; candidate numbers and pass/fail outcomes are illustrative.",
+      adds:"Generate possibilities, test them, and discard failures until the remaining candidates meet the stated requirements.",
+      omitted:"The candidate contents, generator, and both tests are not implemented. The extra test is stipulated, not discovered by the trace; it must not be invented merely to force candidate 4 to win."
+    },
     definition:"Generate and test proposes candidate solutions, checks them against requirements, and rejects those that fail.",
     build:"Needs a representation of candidates and a test for success. Smarter representations can make both stages more selective.",
     use:"You can propose possibilities and recognize valid answers even without knowing how to construct the answer directly.",
@@ -759,6 +826,12 @@ for number, option in enumerate(options, start=1):
   },
   "Means-Ends Analysis":{
     lesson:[5,53],
+    setup:{
+      available:"An encoded blocks arrangement and goal, legal move operators with preconditions and effects, and knowledge connecting differences to useful moves.",
+      origin:"The problem supplies the start and goal. The blocks-world model and operator knowledge are assumed; comparing two states does not by itself invent a legal move.",
+      adds:"Choose a goal difference, select an operator to reduce it, and turn an unmet precondition into a sub-goal before applying the operator.",
+      omitted:"State encoding, operator definitions, difference priorities, and the search inside achieve are placeholders. The successful sub-goal route is supplied; cycle handling and optimality are not demonstrated."
+    },
     definition:"Means-ends analysis compares the current state with a goal and chooses actions or sub-goals that reduce the difference.",
     build:"Adds goal-directed choice to search: represent the current state, the goal, and operators that reduce their differences.",
     use:"A visible difference points to a useful action, and blocked actions can be enabled by manageable sub-goals.",
@@ -780,6 +853,12 @@ for number, option in enumerate(options, start=1):
   },
   "Problem Reduction":{
     lesson:[5,59],
+    setup:{
+      available:"A decomposition of 'make dinner' into required sub-goals and alternatives, plus information about which leaf tasks have been completed.",
+      origin:"The author supplies the AND/OR tree and the solved-leaf set. Another process would need to provide decomposition knowledge and actually solve or verify the leaves.",
+      adds:"Represent which sub-goals are jointly required or interchangeable, then propagate their success to the parent goal.",
+      omitted:"The trace does not discover the decomposition or perform shopping and cooking. evaluate_goal_tree is a placeholder, and the simple tree does not schedule dependencies such as obtaining food before cooking."
+    },
     definition:"Problem reduction breaks a difficult goal into smaller sub-goals whose solutions can be combined.",
     build:"Decomposes a goal into parts; another method, such as Means-Ends Analysis, can solve each leaf.",
     use:"You know how to break a hard task into smaller goals. AND needs every child; OR offers alternative routes.",
@@ -789,14 +868,20 @@ for number, option in enumerate(options, start=1):
         ["goal = 'make dinner'","Start with the top-level task."]],
       ["Getting food, cooking, and setting the table are all needed in this simplified task. Shopping OR delivery can satisfy the food sub-goal.",
         ["tree = AND(OR('shop', 'delivery'), 'cook', 'set table')","Represent requirements and alternatives with different node types."]],
-      ["Choose one food route and complete the required leaves. Delivery is unused, not disproved or forbidden.",
-        ["solved = {'shop', 'cook', 'set table'}","Record the sub-tasks completed in this walkthrough."]],
+      ["The example supplies a set of completed leaves; assigning this set does not execute the tasks. Delivery is unused, not disproved or forbidden.",
+        ["solved = {'shop', 'cook', 'set table'}","Assume these sub-tasks were completed by work outside this trace."]],
       ["An OR node succeeds when one child succeeds; an AND node needs all children. Success then propagates up to dinner.",
         ["done = evaluate_goal_tree(tree, solved)","Combine the leaf results according to their AND/OR links."]]
     ]
   },
   "Production Systems":{
     lesson:[6,67],
+    setup:{
+      available:"Working-memory facts, three stored traffic rules, procedures for matching and firing them, and a policy for selecting among multiple matches.",
+      origin:"The rules are supplied prior knowledge; no rule-learning pass is shown. Red and then green are observations assigned by the example, and specificity is the chosen selection policy.",
+      adds:"Repeatedly match rules against the current memory, select a match, and update memory by firing its action.",
+      omitted:"load_traffic_rules does not explain where rules were learned or authored. Matching, conflict resolution, and action execution are placeholders; changing memory is not a demonstration of controlling a physical agent."
+    },
     definition:"A production system repeatedly matches condition-action rules to working memory, selects a rule, and applies its action.",
     build:"Combines working memory, condition-action rules, and a match-select-act cycle. Unlike a proof alone, firing a rule can change the state.",
     use:"Explicit rules describe how the agent should respond to its current situation, and you need to inspect which rule fired.",
@@ -819,6 +904,12 @@ for number, option in enumerate(options, start=1):
   },
   "Planning":{
     lesson:[13,172],
+    setup:{
+      available:"A represented initial state and goals, move operators with preconditions and add/delete effects, and a model for simulating their consequences.",
+      origin:"The blocks problem and action model are supplied. The tentative and corrected plans are written out by the author, not generated by a search algorithm on this page.",
+      adds:"Expose a conflict between goals and order actions so achieving one goal does not remove a precondition needed for another.",
+      omitted:"Plan search, operator definitions, threat detection, and simulation are not implemented. The example illustrates a repair and its required checks, not a complete planner or an optimality proof."
+    },
     definition:"Planning constructs an action sequence that achieves goals while respecting preconditions and interactions between actions.",
     build:"Uses the states, goals, and operators of Means-Ends Analysis, but explicitly handles interactions among goals.",
     use:"Actions have preconditions and effects, and completing one goal may prevent another.",
@@ -830,13 +921,19 @@ for number, option in enumerate(options, start=1):
         ["plan = [move('C', 'table'), move('A', 'B')]","Propose a plan for the first goal only."]],
       ["Putting A on B makes B not clear. That deletes a precondition for moving B onto C, so the tentative ordering conflicts with goal 2.",
         ["conflict = find_threat(plan, move('B', 'C'))","Detect that the first plan blocks the second goal's action."]],
-      ["Put B on C while B is still clear, then A on B. Simulation must confirm that the final state satisfies both goals.",
+      ["Put B on C while B is still clear, then A on B. This repaired order is supplied explicitly, not found by implemented search. A simulator would need to confirm both final goals.",
         ["plan = [move('C', 'table'), move('B', 'C'), move('A', 'B')]","Reorder the actions to preserve needed preconditions."],
         ["check_all_goals(simulate(state, plan), goals)","Verify both goal relations in the resulting state."]]
     ]
   },
   "Constraint Propagation":{
     lesson:[20,268],
+    setup:{
+      available:"Variables X, Y, and Z, their starting domains, and the constraints X != Y and Y != Z. X being red is already given.",
+      origin:"The domains and constraints are supplied by the toy problem. The agent is not learning those restrictions or deriving X's starting value in this trace.",
+      adds:"Remove unsupported values and pass the consequences through shared variables until no further deletion is required.",
+      omitted:"revise and the propagation scheduler are not implemented; the example supplies the revision order. Larger problems may need search, backtracking, or inconsistency handling after propagation stalls."
+    },
     definition:"Constraint propagation narrows possible values by passing the consequences of one restriction to related variables.",
     build:"Represents possible values as domains and relationships as constraints. A local deletion can trigger more deletions elsewhere.",
     use:"You can rule out values using compatibility constraints without enumerating every complete assignment.",
@@ -855,6 +952,12 @@ for number, option in enumerate(options, start=1):
   },
   "Configuration":{
     lesson:[21,280],
+    setup:{
+      available:"A known design template with engine and battery roles, a catalog of candidate parts, and the electric-engine/large-battery compatibility rule.",
+      origin:"The template, catalog, and rule are assumed design knowledge. The author also chooses the electric-engine branch; none of these are discovered from the goal alone.",
+      adds:"Fill roles in the existing template and propagate compatibility constraints to eliminate unsuitable parts.",
+      omitted:"The selection and propagation procedures are placeholders. Inventing a new architecture, exploring other branches, and checking a real vehicle's engineering requirements are outside this tiny model."
+    },
     definition:"Configuration fills the roles in a known design with components that satisfy compatibility constraints.",
     build:"Applies constraint reasoning to a known design template: fill roles with compatible components.",
     use:"The overall structure is known and the task is choosing parts, not inventing a new design or an action sequence.",
@@ -873,24 +976,36 @@ for number, option in enumerate(options, start=1):
   },
   "Learning by Recording Cases":{
     lesson:[8,93],
+    setup:{
+      available:"Previously labeled animal cases, descriptions of their features, and a similarity metric with feature weights. The query supplies feathers and swimming.",
+      origin:"The library is assumed to have been recorded earlier. Its labels and feature descriptions are provided knowledge; the weights and the origin of the stored cases are not specified.",
+      adds:"This trace shows retrieval and direct reuse of a recorded case's answer. It does not learn a new category definition.",
+      omitted:"Initial case recording, feature extraction, and the similarity implementation are absent. Scores are illustrative, and the trace neither independently verifies the penguin prediction nor stores it as a newly confirmed case."
+    },
     definition:"Learning by recording cases stores solved examples so a similar new problem can reuse a previous answer.",
     build:"Stores solved examples and retrieves them using a similarity measure. Case-Based Reasoning adds adaptation when copying is insufficient.",
     use:"Similar problems usually share the same answer and useful past cases are available.",
     instead:["Case-Based Reasoning","The retrieved solution must be modified to fit the new problem rather than copied unchanged."],
     trace:[
-      ["A case pairs a description with an answer. The new penguin case has features but no assigned label yet.",
+      ["The library must already contain recorded, labeled cases; load_labeled_animals does not show that earlier work. The penguin query supplies features but no assigned label.",
         ["cases = load_labeled_animals()","Retrieve the sparrow, salmon, and bat examples."],
         ["query = {'feathers', 'swims'}","Describe the new animal without its answer."]],
       ["Similarity depends on feature weights. Treating swimming as more important than feathers could retrieve the wrong neighbor; these scores are illustrative.",
         ["scores = similarity(query, cases, weights)","Compute weighted similarity for each stored case."]],
       ["Select the closest case under that metric. Nearest does not mean certainly correct; the metric encodes your assumptions.",
         ["nearest = cases[argmax(scores)]","Retrieve the sparrow case, scored 0.7 here."]],
-      ["Copy the sparrow's label without changing its solution. That direct reuse is what distinguishes this trace from adaptation.",
+      ["Copy the sparrow's label without changing its solution. This demonstrates reuse, not independent confirmation of the answer; recording the initial cases and retaining a verified new case are outside the trace.",
         ["answer = nearest.label","Assign bird to the penguin query."]]
     ]
   },
   "Case-Based Reasoning":{
     lesson:[9,101],
+    setup:{
+      available:"Solved cases, a way to retrieve a relevant one, domain knowledge for adapting it, an evaluator, and storage for retaining a successful revision.",
+      origin:"The old cases must already exist. Adaptation knowledge and feedback are also supplied assumptions; a similar case alone does not tell the agent how to repair every difference.",
+      adds:"Use the retrieve, adapt, evaluate/revise, and retain cycle to turn a related past solution into a checked solution for the new task.",
+      omitted:"All retrieval, cooking adaptations, evaluation outcomes, and storage operations are illustrative rather than implemented. The cooking changes are not a tested recipe; the source of the adaptation rules is unspecified."
+    },
     definition:"Case-based reasoning retrieves a similar past case, adapts its solution, evaluates it, and stores the successful result.",
     build:"Extends case retrieval with adaptation, evaluation, and retention of the newly solved case.",
     use:"A past solution is close enough to help, but important differences prevent copying it as-is.",
@@ -909,6 +1024,12 @@ for number, option in enumerate(options, start=1):
   },
   "Analogical Reasoning":{
     lesson:[18,233],
+    setup:{
+      available:"A selected source and target, relational descriptions of both, and a procedure for aligning corresponding roles rather than surface attributes.",
+      origin:"The solar and atomic descriptions are supplied models. The source is selected in advance, and encode_relations assumes domain knowledge rather than deriving it from the names of the objects.",
+      adds:"Align the relational structures and transfer a candidate relation for later evaluation in the target domain.",
+      omitted:"Source retrieval, relation extraction, mapping search, and validation of the transferred hypothesis are not implemented. The planetary-atom analogy is historical, not a correct modern account of electron motion."
+    },
     definition:"Analogical reasoning maps relationships from a known situation to a new one and transfers possible solutions or inferences.",
     build:"Uses relational representations, such as Semantic Networks, to align a known source with a new target.",
     use:"The useful similarity is in the pattern of relationships, even when objects look different or come from different domains.",
@@ -924,6 +1045,12 @@ for number, option in enumerate(options, start=1):
   },
   "Incremental Concept Learning":{
     lesson:[10,119],
+    setup:{
+      available:"Structured descriptions of examples, trusted positive/negative labels, and a language for describing shapes and relationships such as support and contact.",
+      origin:"The author supplies the labeled arch, near-miss, and wedge-topped example. The labels and meaningful relationships are not discovered by the concept learner itself.",
+      adds:"Revise one provisional concept, specializing it to exclude a near-miss and generalizing it to include a new positive example.",
+      omitted:"Image recognition, label acquisition, and the comparison/update procedures are placeholders. Examples are deliberately chosen to isolate one difference; 'any shape' is a toy generalization, not a claim that every top can physically form an arch."
+    },
     definition:"Incremental concept learning revises a concept definition one example at a time, making it broader or more specific.",
     build:"Uses structured examples to revise one concept definition. Near-misses isolate which relationship needs changing.",
     use:"Examples arrive one at a time and their meaningful differences can guide small, explainable edits.",
@@ -941,6 +1068,12 @@ for number, option in enumerate(options, start=1):
   },
   "Version Spaces":{
     lesson:[19,251],
+    setup:{
+      available:"A fixed hypothesis language over size and color, known attribute domains, labeled examples, and an ordering from specific to general hypotheses.",
+      origin:"The author supplies the feature vocabulary and labels. The example assumes noise-free labels and a target expressible in this language; the learner is not discovering the language itself.",
+      adds:"Narrow the set of hypotheses consistent with the examples by updating its specific and general boundaries.",
+      omitted:"Boundary-update implementations and the general case with several hypotheses per boundary are not shown. Convergence is relative to this language and these examples, not proof of the concept for every possible future observation."
+    },
     definition:"A version space is the set of hypotheses still consistent with the labeled examples, bounded by specific and general alternatives.",
     build:"Tracks a set of consistent concepts through its most specific boundary S and most general boundary G.",
     use:"You have labeled examples, a fixed hypothesis language, and want to delay committing to one rule until the evidence supports it.",
@@ -958,6 +1091,12 @@ for number, option in enumerate(options, start=1):
   },
   "Classification":{
     lesson:[11,136],
+    setup:{
+      available:"An existing concept hierarchy with category tests, plus observed features such as feathers, webbed feet, and quacking.",
+      origin:"The toy taxonomy and its tests are supplied prior knowledge. They might be authored or learned elsewhere, but this walkthrough does not build them or obtain them from the Concept Learning lesson.",
+      adds:"Use an instance's features to descend through supported categories and assign a label without changing the category definitions.",
+      omitted:"Feature extraction, taxonomy acquisition, and matching/refinement procedures are not implemented. The simplified bird hierarchy assumes reliable features and is not a complete biological taxonomy."
+    },
     definition:"Classification uses an instance's features to place it in a supported category within an existing concept hierarchy.",
     build:"Uses an existing concept hierarchy to interpret observed features (L11, p. 136). Unlike Concept Learning, this step labels an instance without changing the concepts.",
     use:"You have a hierarchy of known categories and features that can progressively narrow an instance's label.",
@@ -975,6 +1114,12 @@ for number, option in enumerate(options, start=1):
   },
   "Explanation-Based Learning":{
     lesson:[17,223],
+    setup:{
+      available:"A known target concept, a positive cup example, and a domain theory linking properties to functional requirements such as lifting, containment, and stability.",
+      origin:"The target and the handle/concavity/base rules are supplied background knowledge. This one example does not teach those rules from scratch or independently establish their truth.",
+      adds:"Explain why the example meets the known target under the theory, then generalize the explanation into a reusable shortcut using only relevant premises.",
+      omitted:"The proof engine, theory acquisition, and rule-compilation procedures are placeholders. The toy theory ignores factors such as leaks and material strength; a successful proof is only as dependable as its premises."
+    },
     definition:"Explanation-based learning uses prior knowledge to explain an example and turns that explanation into a reusable rule.",
     build:"Uses domain rules to explain why one example meets a known concept, then saves the relevant connection as a reusable rule.",
     use:"You have a trustworthy theory that explains success; one example can reveal which features actually matter under that theory.",
@@ -992,6 +1137,12 @@ for number, option in enumerate(options, start=1):
   },
   "Meta-Reasoning":{
     lesson:[24,315],
+    setup:{
+      available:"An object-level solver, an alternative visual solver, a monitor with access to reasoning evidence, and knowledge for diagnosing failures and choosing a response.",
+      origin:"Both solvers and the monitoring/diagnostic knowledge are assumed existing capabilities. They are not created by reflection, and the earlier playground lessons are not being executed together here.",
+      adds:"Use evidence about the agent's own reasoning to decide whether to continue, repair knowledge, or change strategy.",
+      omitted:"The solvers, recorded trace, diagnosis procedure, and retry-budget policy are not implemented. The example stipulates a strategy mismatch; 'no option matches' alone does not establish that diagnosis."
+    },
     definition:"Meta-reasoning examines an agent's knowledge, reasoning, and learning to decide when to continue, repair, or change its approach.",
     build:"Adds a meta-level that monitors knowledge, reasoning, and learning (L24, pp. 315–318). The example focuses on strategy selection, one part of that wider role.",
     use:"The agent needs to notice an impasse or wasteful reasoning and choose a better approach using evidence.",
@@ -1010,6 +1161,12 @@ for number, option in enumerate(options, start=1):
   },
   "Diagnosis":{
     lesson:[22,292],
+    setup:{
+      available:"A printer model connecting faults to symptoms, a set of possible faults, available tests, and reliable observations of their results.",
+      origin:"The fault model is supplied prior knowledge. The symptoms and test results are assigned by this example, not collected from a printer; one of the three listed faults is assumed to be responsible.",
+      adds:"Propose causes that could explain the symptoms and eliminate hypotheses contradicted by further evidence.",
+      omitted:"Model acquisition, test selection, hardware interaction, and the inference procedures are not implemented. Multiple faults, unknown causes, and unreliable tests would require a richer model."
+    },
     definition:"Diagnosis reasons backward from observed symptoms to possible causes and uses evidence to distinguish them.",
     build:"Reasons backward from symptoms to faults in an external system (L22, p. 292). It becomes meta-reasoning when the object being diagnosed is the agent's own cognition.",
     use:"You see a failure and need tests that distinguish explanations, rather than just rules that predict what a known fault would do.",
@@ -1028,6 +1185,12 @@ for number, option in enumerate(options, start=1):
   },
   "Learning by Correcting Mistakes":{
     lesson:[23,304],
+    setup:{
+      available:"An existing predictor and concept, a retained reasoning trace, trusted feedback identifying the error, and knowledge to propose and check a repair.",
+      origin:"The author supplies the wrong color rule, the correct 'bowl' label, and the toy handle requirement. The agent's own prediction does not provide an independent correctness signal.",
+      adds:"Connect a known error to the knowledge that caused it, revise that knowledge, and check whether the repair damages previously accepted cases.",
+      omitted:"Trace capture, blame assignment, repair search, and the test-case set are not implemented. The proposed handle requirement needs additional knowledge; one mislabeled red bowl cannot establish it as a universal rule."
+    },
     definition:"Learning by correcting mistakes traces an incorrect result to faulty knowledge and revises the part that caused the error.",
     build:"Uses a known error and its explanation to revise faulty knowledge. L23 (p. 304) introduces this as meta-reasoning, so it sits under Oversee while also performing learning.",
     use:"Feedback says the answer was wrong, and you can trace it to a particular rule or concept condition.",
@@ -1039,13 +1202,19 @@ for number, option in enumerate(options, start=1):
         ["trace = trace_prediction(error)","Inspect the conditions and rules that produced cup."]],
       ["Blame needs a causal link to the error. Merely noticing that the object is red would not justify changing a color rule elsewhere.",
         ["faulty_rule = isolate_fault(trace, error)","Identify the unsupported red-implies-cup rule."]],
-      ["Remove the spurious color condition and add the handle requirement in this toy concept. Recheck past cases: not all real cups have handles.",
+      ["The example supplies a handle requirement as repair knowledge; the negative bowl alone cannot justify that choice. Remove the color condition and recheck past cases. Not all real cups have handles.",
         ["concept = patch(concept, remove='red', require='has handle')","Revise only the implicated part of the definition."],
         ["recheck_known_cases(concept)","Check that the repair fixes this error without breaking accepted examples."]]
     ]
   },
   "Ethics in AI":{
     lesson:[25,340],
+    setup:{
+      available:"A hypothetical diagnostic agent, training-data provenance, suitable evaluation data, evidence about its decisions, and people able to assess harms and responsibilities.",
+      origin:"The scenario assumes a model trained on hospital A's patients; it is not the printer model from Diagnosis. Actual data, labels, stakeholder input, and evaluation criteria would need to be supplied by the people developing and using such a system.",
+      adds:"Make questions about population coverage, unequal harms, faithful explanations, accountability, and avenues for challenge explicit throughout design and use.",
+      omitted:"No model, dataset, measured error report, or completed audit is provided. The helper calls are prompts for substantive technical and human work, not an automatic procedure that certifies an agent as ethical."
+    },
     definition:"Ethics in AI examines how an agent's design and use affect people, including fairness, accountability, and opportunities to challenge its decisions.",
     build:"Examines choices across the whole agent: data, error costs, explanations, deployment, and responsibility. It is not a final cleanup step.",
     use:"Always consider who is affected, especially when errors have unequal or serious consequences. These questions guide design decisions, not an automatic ethics score.",
@@ -1138,6 +1307,7 @@ function renderHead(){
   $("name").textContent=m.n; $("definition").textContent=g.definition; $("br").textContent=m.br; $("hw").textContent=m.hw;
   $("lesson").textContent=`Lesson ${String(g.lesson[0]).padStart(2,"0")}`;
   $("course-reference").textContent=lessonLabel(m);
+  for(const key of ["available","origin","adds","omitted"])$("setup-"+key).textContent=g.setup[key];
   $("build").textContent=g.build;
   $("choose").textContent=g.use;
   $("state-title").textContent=g.runnable?"Picture comparison":"State now";
